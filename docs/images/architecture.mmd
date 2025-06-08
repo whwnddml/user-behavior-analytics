@@ -1,0 +1,36 @@
+graph TB
+    subgraph "클라이언트 사이드"
+        A["웹 페이지<br/>(HTML/CSS)"]
+        B["분석 스크립트<br/>(JavaScript)"]
+        C["데이터 수집 모듈"]
+        
+        subgraph "추적 기능"
+            D["영역 체류 시간<br/>IntersectionObserver"]
+            E["스크롤 패턴<br/>ScrollTracker"]
+            F["사용자 인터랙션<br/>EventListener"]
+            G["폼 분석<br/>FormAnalytics"]
+        end
+    end
+
+    subgraph "서버 사이드"
+        H["RESTful API<br/>서버"]
+        I["데이터 처리<br/>서비스"]
+        J["데이터베이스"]
+        
+        subgraph "데이터베이스 테이블"
+            K["세션"]
+            L["페이지뷰"]
+            M["영역 체류"]
+            N["스크롤 행동"]
+            O["인터랙션"]
+            P["폼 분석"]
+        end
+    end
+
+    A --> B
+    B --> C
+    C --> D & E & F & G
+    D & E & F & G --> H
+    H --> I
+    I --> J
+    J --> K & L & M & N & O & P 
