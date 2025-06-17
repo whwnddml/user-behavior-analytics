@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: user-behavior-analytics-api
+    env: node
+    buildCommand: npm run build:render
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: user-behavior-analytics-api
+          property: port
+
+databases:
+  - name: user-behavior-analytics-db
+    databaseName: uba
+    user: postgres 
