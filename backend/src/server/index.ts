@@ -17,10 +17,12 @@ app.use(compression()); // 응답 압축
 
 // CORS 설정
 const corsOptions = {
-  origin: process.env['CORS_ORIGIN']?.split(',') || ['http://localhost:3000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: '*', // 개발 환경에서는 모든 origin 허용
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true,
+  maxAge: 86400, // Preflight 결과를 24시간 캐시
 };
 app.use(cors(corsOptions));
 

@@ -5,16 +5,18 @@ import { ApiResponse } from '../types';
 // 클라이언트 분석 데이터 검증 스키마
 export const analyticsDataSchema = Joi.object({
   sessionId: Joi.string().required(),
-  pageUrl: Joi.string().uri().required(),
+  pageUrl: Joi.string().required(),
   pageTitle: Joi.string().optional(),
   userAgent: Joi.string().required(),
+  startTime: Joi.string().optional(),
   
   // 성능 메트릭
   performance: Joi.object({
     loadTime: Joi.number().min(0).optional(),
     domContentLoaded: Joi.number().min(0).optional(),
     firstPaint: Joi.number().min(0).optional(),
-    firstContentfulPaint: Joi.number().min(0).optional()
+    firstContentfulPaint: Joi.number().min(0).optional(),
+    navigationtype: Joi.number().optional()
   }).optional(),
 
   // 영역 데이터
@@ -25,8 +27,8 @@ export const analyticsDataSchema = Joi.object({
       areaType: Joi.string().optional(),
       timeSpent: Joi.number().min(0).required(),
       interactions: Joi.number().min(0).required(),
-      firstEngagement: Joi.date().optional(),
-      lastEngagement: Joi.date().optional(),
+      firstEngagement: Joi.alternatives().try(Joi.date(), Joi.string()).optional(),
+      lastEngagement: Joi.alternatives().try(Joi.date(), Joi.string()).optional(),
       visibility: Joi.object({
         visibleTime: Joi.number().min(0).required(),
         viewportPercent: Joi.number().min(0).max(100).required()
@@ -38,15 +40,15 @@ export const analyticsDataSchema = Joi.object({
   scrollMetrics: Joi.object({
     deepestScroll: Joi.number().min(0).max(100).required(),
     scrollDepthBreakpoints: Joi.object({
-      25: Joi.number().min(0).optional(),
-      50: Joi.number().min(0).optional(),
-      75: Joi.number().min(0).optional(),
-      100: Joi.number().min(0).optional()
+      25: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional(),
+      50: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional(),
+      75: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional(),
+      100: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional()
     }).required(),
     scrollPattern: Joi.array().items(
       Joi.object({
         position: Joi.number().min(0).max(100).required(),
-        timestamp: Joi.date().required(),
+        timestamp: Joi.alternatives().try(Joi.date(), Joi.string(), Joi.number()).required(),
         direction: Joi.string().valid('up', 'down').required(),
         speed: Joi.number().min(0).required()
       })
@@ -60,8 +62,8 @@ export const analyticsDataSchema = Joi.object({
       y: Joi.number().min(0).required(),
       type: Joi.string().valid('click', 'hover', 'touch').required(),
       targetElement: Joi.string().required(),
-      timestamp: Joi.date().required(),
-      areaId: Joi.string().optional()
+      timestamp: Joi.alternatives().try(Joi.date(), Joi.string(), Joi.number()).required(),
+      areaId: Joi.string().allow(null).optional()
     })
   ).required(),
 
