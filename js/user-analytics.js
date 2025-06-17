@@ -6,8 +6,13 @@
 class UserAnalytics {
     constructor(config = {}) {
         // 기본 설정
+        const isProd = window.location.hostname !== 'localhost';
+        const defaultApiEndpoint = isProd 
+            ? 'https://user-behavior-analytics.onrender.com/api/analytics'
+            : 'http://localhost:3000/api/analytics';
+
         this.config = {
-            apiEndpoint: config.apiEndpoint || 'http://localhost:3000/api/analytics',
+            apiEndpoint: config.apiEndpoint || defaultApiEndpoint,
             sendInterval: config.sendInterval || 30000, // 30초마다 전송
             maxRetries: config.maxRetries || 3,
             debug: config.debug || false,
