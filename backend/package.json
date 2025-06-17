@@ -4,12 +4,13 @@
   "description": "Backend API server for user behavior analytics",
   "main": "dist/server/index.js",
   "scripts": {
-    "start": "node dist/server/index.js",
+    "start:dev": "NODE_ENV=development ts-node-dev src/server/index.ts",
+    "start": "NODE_ENV=production node dist/server/index.js",
     "dev": "nodemon src/server/index.ts",
     "build": "tsc",
-    "build:render": "npm install && npm run build",
+    "build:render": "npm install && tsc",
     "test": "jest",
-    "lint": "eslint src/**/*.{js,ts}",
+    "lint": "eslint . --ext .ts",
     "format": "prettier --write src/**/*.{js,ts,json}",
     "db:migrate": "node dist/utils/migrate.js",
     "db:seed": "node dist/utils/seed.js"
@@ -54,6 +55,7 @@
     "prettier": "^3.2.5",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3"
   },
@@ -61,4 +63,3 @@
     "node": ">=18.0.0"
   }
 }
- 
