@@ -252,4 +252,243 @@ router.post('/session/end', async (req: Request, res: Response) => {
   }
 });
 
+// === 대시보드 API ===
+
+// 대시보드 전체 통계
+router.get('/dashboard/stats', async (req: Request, res: Response) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    const stats = await AnalyticsModel.getDashboardStats(
+      dateFrom as string,
+      dateTo as string
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Dashboard stats retrieved successfully',
+      data: stats
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving dashboard stats:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve dashboard stats',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
+// 세션 목록 조회
+router.get('/dashboard/sessions', async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query['limit'] as string) || 50;
+    const offset = parseInt(req.query['offset'] as string) || 0;
+    
+    const sessions = await AnalyticsModel.getSessions(limit, offset);
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Sessions retrieved successfully',
+      data: {
+        sessions,
+        pagination: {
+          limit,
+          offset,
+          total: sessions.length
+        }
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving sessions:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve sessions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
+// 특정 세션 상세 정보
+router.get('/dashboard/sessions/:sessionId', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.params['sessionId'];
+    
+    if (!sessionId) {
+      const errorResponse: ApiResponse = {
+        success: false,
+        message: 'Session ID is required'
+      };
+      res.status(400).json(errorResponse);
+      return;
+    }
+    
+    const sessionDetail = await AnalyticsModel.getSessionDetail(sessionId);
+
+    if (!sessionDetail.session) {
+      const errorResponse: ApiResponse = {
+        success: false,
+        message: 'Session not found'
+      };
+      res.status(404).json(errorResponse);
+      return;
+    }
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Session detail retrieved successfully',
+      data: sessionDetail
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving session detail:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve session detail',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
+// 영역별 통계
+router.get('/dashboard/areas', async (req: Request, res: Response) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    const areaStats = await AnalyticsModel.getAreaStats(
+      dateFrom as string,
+      dateTo as string
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Area stats retrieved successfully',
+      data: areaStats
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving area stats:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve area stats',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
+// 시간대별 통계
+router.get('/dashboard/hourly', async (req: Request, res: Response) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    const hourlyStats = await AnalyticsModel.getHourlyStats(
+      dateFrom as string,
+      dateTo as string
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Hourly stats retrieved successfully',
+      data: hourlyStats
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving hourly stats:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve hourly stats',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
+// 디바이스별 통계
+router.get('/dashboard/devices', async (req: Request, res: Response) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    const deviceStats = await AnalyticsModel.getDeviceStats(
+      dateFrom as string,
+      dateTo as string
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Device stats retrieved successfully',
+      data: deviceStats
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving device stats:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve device stats',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
+// 페이지 성능 통계
+router.get('/dashboard/performance', async (req: Request, res: Response) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    const performanceStats = await AnalyticsModel.getPerformanceStats(
+      dateFrom as string,
+      dateTo as string
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Performance stats retrieved successfully',
+      data: performanceStats
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    logger.error('Error retrieving performance stats:', error);
+    
+    const errorResponse: ApiResponse = {
+      success: false,
+      message: 'Failed to retrieve performance stats',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
 export default router; 

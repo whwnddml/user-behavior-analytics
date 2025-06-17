@@ -265,4 +265,205 @@ export class AnalyticsModel {
       client.release();
     }
   }
+
+  // === 데이터 조회 메서드들 ===
+
+  // 대시보드 전체 통계
+  static async getDashboardStats(dateFrom?: string, dateTo?: string): Promise<any> {
+    const dateCondition = dateFrom && dateTo 
+      ? `WHERE s.start_time >= $1 AND s.start_time <= $2`
+      : '';
+    const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
+
+    const query = `
+      SELECT 
+        COUNT(DISTINCT s.session_id) as total_sessions,
+        COUNT(DISTINCT p.pageview_id) as total_pageviews,
+        COALESCE(AVG(p.load_time), 0) as avg_load_time,
+        COALESCE(AVG(sm.deepest_scroll), 0) as avg_scroll_depth,
+        COUNT(i.interaction_id) as total_interactions,
+        COUNT(DISTINCT s.device_type) as device_types,
+        COALESCE(AVG(EXTRACT(EPOCH FROM (s.end_time - s.start_time))), 0) as avg_session_duration
+      FROM sessions s
+      LEFT JOIN pageviews p ON s.session_id = p.session_id
+      LEFT JOIN scroll_metrics sm ON p.pageview_id = sm.pageview_id
+      LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
+      ${dateCondition}
+    `;
+
+    const result = await pool.query(query, params);
+    return result.rows[0];
+  }
+
+  // 세션 목록 조회
+  static async getSessions(limit: number = 50, offset: number = 0): Promise<any[]> {
+    const query = `
+      SELECT 
+        s.session_id,
+        s.start_time,
+        s.end_time,
+        s.device_type,
+        s.browser_name,
+        s.landing_page,
+        COUNT(p.pageview_id) as pageviews,
+        COALESCE(AVG(p.load_time), 0) as avg_load_time,
+        COALESCE(MAX(sm.deepest_scroll), 0) as max_scroll_depth,
+        COUNT(i.interaction_id) as total_interactions
+      FROM sessions s
+      LEFT JOIN pageviews p ON s.session_id = p.session_id
+      LEFT JOIN scroll_metrics sm ON p.pageview_id = sm.pageview_id
+      LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
+      GROUP BY s.session_id, s.start_time, s.end_time, s.device_type, s.browser_name, s.landing_page
+      ORDER BY s.start_time DESC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const result = await pool.query(query, [limit, offset]);
+    return result.rows;
+  }
+
+  // 특정 세션 상세 정보
+  static async getSessionDetail(sessionId: string): Promise<any> {
+    const sessionQuery = `
+      SELECT * FROM sessions WHERE session_id = $1
+    `;
+    
+    const pageviewsQuery = `
+      SELECT p.*, sm.deepest_scroll, sm.scroll_25_time, sm.scroll_50_time, sm.scroll_75_time, sm.scroll_100_time
+      FROM pageviews p
+      LEFT JOIN scroll_metrics sm ON p.pageview_id = sm.pageview_id
+      WHERE p.session_id = $1
+      ORDER BY p.start_time
+    `;
+
+    const areaEngagementsQuery = `
+      SELECT ae.*
+      FROM area_engagements ae
+      JOIN pageviews p ON ae.pageview_id = p.pageview_id
+      WHERE p.session_id = $1
+      ORDER BY ae.time_spent DESC
+    `;
+
+    const interactionsQuery = `
+      SELECT i.*
+      FROM interactions i
+      JOIN pageviews p ON i.pageview_id = p.pageview_id
+      WHERE p.session_id = $1
+      ORDER BY i.recorded_at
+      LIMIT 100
+    `;
+
+    const [sessionResult, pageviewsResult, areaResult, interactionsResult] = await Promise.all([
+      pool.query(sessionQuery, [sessionId]),
+      pool.query(pageviewsQuery, [sessionId]),
+      pool.query(areaEngagementsQuery, [sessionId]),
+      pool.query(interactionsQuery, [sessionId])
+    ]);
+
+    return {
+      session: sessionResult.rows[0],
+      pageviews: pageviewsResult.rows,
+      areaEngagements: areaResult.rows,
+      interactions: interactionsResult.rows
+    };
+  }
+
+  // 영역별 통계
+  static async getAreaStats(dateFrom?: string, dateTo?: string): Promise<any[]> {
+    const dateCondition = dateFrom && dateTo 
+      ? `WHERE s.start_time >= $1 AND s.start_time <= $2`
+      : '';
+    const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
+
+    const query = `
+      SELECT 
+        ae.area_id,
+        ae.area_name,
+        COUNT(*) as total_engagements,
+        AVG(ae.time_spent) as avg_time_spent,
+        SUM(ae.interaction_count) as total_interactions,
+        AVG(ae.viewport_percent) as avg_viewport_percent,
+        COUNT(DISTINCT s.session_id) as unique_sessions
+      FROM area_engagements ae
+      JOIN pageviews p ON ae.pageview_id = p.pageview_id
+      JOIN sessions s ON p.session_id = s.session_id
+      ${dateCondition}
+      GROUP BY ae.area_id, ae.area_name
+      ORDER BY avg_time_spent DESC
+    `;
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
+  // 시간대별 활동 통계
+  static async getHourlyStats(dateFrom?: string, dateTo?: string): Promise<any[]> {
+    const dateCondition = dateFrom && dateTo 
+      ? `WHERE start_time >= $1 AND start_time <= $2`
+      : '';
+    const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
+
+    const query = `
+      SELECT 
+        EXTRACT(HOUR FROM start_time) as hour,
+        COUNT(*) as session_count,
+        COUNT(DISTINCT device_type) as device_variety
+      FROM sessions
+      ${dateCondition}
+      GROUP BY EXTRACT(HOUR FROM start_time)
+      ORDER BY hour
+    `;
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
+  // 디바이스별 통계
+  static async getDeviceStats(dateFrom?: string, dateTo?: string): Promise<any[]> {
+    const dateCondition = dateFrom && dateTo 
+      ? `WHERE start_time >= $1 AND start_time <= $2`
+      : '';
+    const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
+
+    const query = `
+      SELECT 
+        device_type,
+        browser_name,
+        COUNT(*) as session_count,
+        COALESCE(AVG(EXTRACT(EPOCH FROM (end_time - start_time))), 0) as avg_duration
+      FROM sessions
+      ${dateCondition}
+      GROUP BY device_type, browser_name
+      ORDER BY session_count DESC
+    `;
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
+  // 페이지 성능 통계
+  static async getPerformanceStats(dateFrom?: string, dateTo?: string): Promise<any[]> {
+    const dateCondition = dateFrom && dateTo 
+      ? `WHERE s.start_time >= $1 AND s.start_time <= $2`
+      : '';
+    const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
+
+    const query = `
+      SELECT 
+        p.page_url,
+        COUNT(*) as view_count,
+        COALESCE(AVG(p.load_time), 0) as avg_load_time,
+        COALESCE(AVG(p.dom_content_loaded), 0) as avg_dom_loaded,
+        COALESCE(AVG(p.first_paint), 0) as avg_first_paint,
+        COALESCE(AVG(p.first_contentful_paint), 0) as avg_fcp
+      FROM pageviews p
+      JOIN sessions s ON p.session_id = s.session_id
+      ${dateCondition}
+      GROUP BY p.page_url
+      ORDER BY view_count DESC
+    `;
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
 } 
