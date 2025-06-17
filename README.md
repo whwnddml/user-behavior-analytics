@@ -1,122 +1,290 @@
-# User Behavior Analytics
+# 🔍 사용자 행동 분석 시스템 (User Behavior Analytics)
 
-사용자 행동 분석을 위한 웹 기반 도구입니다. 이 프로젝트는 웹사이트 사용자의 행동을 추적하고 분석하여 의미 있는 인사이트를 제공합니다.
+실시간으로 웹사이트 사용자의 행동을 추적하고 분석하는 완전한 시스템입니다.
 
-## 시스템 아키텍처
+## 📋 주요 기능
 
-```mermaid
-graph TB
-    subgraph "클라이언트 사이드"
-        A["웹 페이지<br/>(HTML/CSS)"]
-        B["분석 스크립트<br/>(JavaScript)"]
-        C["데이터 수집 모듈"]
-        
-        subgraph "추적 기능"
-            D["영역 체류 시간<br/>IntersectionObserver"]
-            E["스크롤 패턴<br/>ScrollTracker"]
-            F["사용자 인터랙션<br/>EventListener"]
-            G["폼 분석<br/>FormAnalytics"]
-        end
-    end
+### 🎯 **실시간 사용자 행동 추적**
+- **영역별 상호작용**: 각 영역의 체류시간, 가시성, 클릭 수 추적
+- **스크롤 분석**: 스크롤 깊이, 패턴, 속도 및 25/50/75/100% 이정표 기록
+- **클릭 히트맵**: 모든 클릭과 마우스 이동을 좌표와 함께 기록
+- **폼 분석**: 필드별 입력 시간, 오류 수, 완성도 추적
+- **성능 메트릭**: 페이지 로딩 시간, First Paint, DOMContentLoaded 등
 
-    subgraph "서버 사이드"
-        H["RESTful API<br/>서버"]
-        I["데이터 처리<br/>서비스"]
-        J["데이터베이스"]
-        
-        subgraph "데이터베이스 테이블"
-            K["세션"]
-            L["페이지뷰"]
-            M["영역 체류"]
-            N["스크롤 행동"]
-            O["인터랙션"]
-            P["폼 분석"]
-        end
-    end
+### 🔧 **고급 기술 구현**
+- **TypeScript**: 완전한 타입 안전성
+- **PostgreSQL**: 구조화된 데이터 저장
+- **Intersection Observer**: 정확한 영역 가시성 추적
+- **Throttling**: 성능 최적화된 이벤트 처리
+- **자동 세션 관리**: 페이지 로드부터 언로드까지
 
-    A --> B
-    B --> C
-    C --> D & E & F & G
-    D & E & F & G --> H
-    H --> I
-    I --> J
-    J --> K & L & M & N & O & P
-```
+## 🚀 빠른 시작
 
-## 주요 기능
-
-- **영역 기반 분석**: 웹페이지의 특정 영역별 사용자 체류 시간과 상호작용을 추적
-- **스크롤 패턴**: 사용자의 스크롤 행동과 깊이를 분석
-- **인터랙션 추적**: 클릭, 마우스 이동 등 사용자 상호작용 데이터 수집
-- **폼 분석**: 폼 작성 행동과 완료율 분석
-
-## 기술 스택
-
-### 클라이언트
-- HTML5
-- CSS3
-- JavaScript (ES6+)
-- IntersectionObserver API
-- DOM Events API
-
-### 서버
-- RESTful API
-- 데이터베이스 (PostgreSQL/MariaDB)
-
-## 설치 방법
-
-1. 저장소 클론
+### 1. **프로젝트 클론 및 설정**
 ```bash
-git clone https://github.com/whwnddml/user-behavior-analytics.git
-```
-
-2. 의존성 설치
-```bash
+git clone <repository-url>
 cd user-behavior-analytics
-npm install
 ```
 
-3. 환경 설정
-- `.env` 파일 생성
-- 데이터베이스 연결 정보 설정
-
-4. 서버 실행
+### 2. **백엔드 설정 및 실행**
 ```bash
-npm start
+cd backend
+
+# 환경 변수 설정
+cp env.example .env
+
+# 종속성 설치
+npm install
+
+# 데이터베이스 실행 (Docker 필요)
+docker-compose up -d
+
+# 백엔드 서버 실행
+npm run dev
 ```
 
-## 사용 방법
+백엔드 서버가 `http://localhost:3000`에서 실행됩니다.
 
-1. 분석하고자 하는 웹페이지에 스크립트 추가:
-```html
-<script src="path/to/analytics.js"></script>
+### 3. **프론트엔드 실행**
+```bash
+# 프로젝트 루트 디렉토리에서
+python3 -m http.server 8080
+# 또는
+npx serve . --port 8080
 ```
 
-2. 영역 정의:
-```html
-<div class="area" data-area-id="main-content">
-    <!-- 콘텐츠 -->
-</div>
-```
+### 4. **페이지 접속**
+- **메인 데모**: http://localhost:8080/index.html
+- **테스트 페이지**: http://localhost:8080/test-frontend.html
 
-3. 데이터 수집 시작:
+## 🎮 사용법
+
+### **자동 추적**
+페이지를 로드하면 자동으로 다음을 수행합니다:
+- 사용자 행동 추적 시작
+- 30초마다 자동으로 백엔드에 데이터 전송
+- 페이지 언로드 시 세션 종료
+
+### **수동 제어**
+브라우저 개발자 도구에서:
 ```javascript
-Analytics.init({
-    projectId: 'your-project-id',
-    // 추가 설정...
+// 현재 수집된 데이터 확인
+window.analyticsHelpers.getCurrentData()
+
+// 실시간 통계 확인
+window.analyticsHelpers.getCurrentStats()
+
+// 즉시 데이터 전송
+window.analyticsHelpers.sendDataNow()
+
+// 세션 종료
+window.analyticsHelpers.endSession()
+
+// 추적 중지
+window.analyticsHelpers.stopTracking()
+```
+
+### **실시간 시각화**
+- **스크롤 진행바**: 페이지 상단에 실시간 스크롤 진행률 표시
+- **클릭 효과**: 클릭 시 파급 효과 애니메이션
+- **영역 하이라이트**: 마우스 호버 시 추적 중인 영역 표시
+- **분석 상태**: 우상단에 실시간 분석 상태 표시
+
+## 📊 수집되는 데이터
+
+### **세션 데이터**
+```typescript
+{
+  sessionId: string,
+  userAgent: string,
+  ipAddress: string,
+  deviceType: 'mobile' | 'tablet' | 'desktop',
+  browserName: string,
+  startTime: Date,
+  endTime?: Date
+}
+```
+
+### **페이지뷰 데이터**
+```typescript
+{
+  sessionId: string,
+  pageUrl: string,
+  pageTitle: string,
+  loadTime: number,
+  domContentLoaded: number,
+  firstPaint: number,
+  firstContentfulPaint: number
+}
+```
+
+### **영역 상호작용**
+```typescript
+{
+  areaId: string,
+  areaName: string,
+  timeSpent: number,
+  interactions: number,
+  visibleTime: number,
+  viewportPercent: number
+}
+```
+
+### **스크롤 메트릭**
+```typescript
+{
+  deepestScroll: number,
+  scrollDepthBreakpoints: {
+    25: timestamp,
+    50: timestamp,
+    75: timestamp,
+    100: timestamp
+  },
+  scrollPattern: Array<{
+    position: number,
+    direction: 'up' | 'down',
+    speed: number,
+    timestamp: number
+  }>
+}
+```
+
+## 🔧 설정 및 커스터마이징
+
+### **클라이언트 설정**
+```javascript
+// 커스텀 설정으로 분석 시스템 초기화
+window.UserAnalytics = new UserAnalytics({
+  apiEndpoint: 'http://localhost:3000/api/analytics',
+  sendInterval: 30000,        // 30초마다 전송
+  debug: true,                // 디버그 모드
+  enableHeatmap: true,        // 히트맵 추적
+  enableScrollTracking: true, // 스크롤 추적
+  enableFormTracking: true,   // 폼 추적
+  enablePerformanceTracking: true // 성능 추적
 });
 ```
 
-## 데모
+### **HTML 마크업**
+추적할 영역에 `data-area-id` 속성 추가:
+```html
+<div class="area" data-area-id="header" data-area-name="헤더">
+  <!-- 콘텐츠 -->
+</div>
+```
 
-프로젝트 데모는 다음 URL에서 확인할 수 있습니다:
-https://whwnddml.github.io/user-behavior-analytics/
+### **백엔드 설정**
+`.env` 파일에서 데이터베이스 및 서버 설정:
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=uba
+DB_USER=postgres
+DB_PASSWORD=password
+PORT=3000
+NODE_ENV=development
+```
 
-## 라이선스
+## 🎯 API 엔드포인트
 
-이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+### **POST** `/api/analytics/collect`
+사용자 행동 데이터 수집
+```json
+{
+  "sessionId": "session_1234567890_abcdef",
+  "pageUrl": "http://localhost:8080/index.html",
+  "areaEngagements": [...],
+  "scrollMetrics": {...},
+  "interactionMap": [...],
+  "formAnalytics": [...]
+}
+```
 
+### **POST** `/api/analytics/session/end`
+세션 종료
+```json
+{
+  "sessionId": "session_1234567890_abcdef"
+}
+```
 
-참고
-https://mermaid.live/
+### **GET** `/api/analytics/health`
+서버 상태 확인
+```json
+{
+  "success": true,
+  "message": "Analytics API is running",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+## 🗄️ 데이터베이스 구조
+
+### **주요 테이블**
+- `sessions`: 사용자 세션 정보
+- `pageviews`: 페이지뷰 및 성능 데이터
+- `area_engagements`: 영역별 상호작용 데이터
+- `scroll_metrics`: 스크롤 메트릭
+- `scroll_patterns`: 상세 스크롤 패턴
+- `interactions`: 클릭/마우스 이벤트
+- `form_analytics`: 폼 분석 데이터
+- `form_field_analytics`: 필드별 상세 데이터
+
+## 🧪 테스트
+
+### **연결 테스트**
+1. `http://localhost:8080/test-frontend.html` 접속
+2. "연결 재시도" 버튼으로 백엔드 연결 확인
+3. "분석 시작" 버튼으로 추적 시스템 확인
+
+### **기능 테스트**
+1. 페이지 스크롤하여 스크롤 추적 확인
+2. 다양한 영역 클릭하여 클릭 추적 확인
+3. 폼 필드 입력하여 폼 분석 확인
+4. "데이터 즉시 전송" 버튼으로 API 연동 확인
+
+### **디버그 모드**
+브라우저 콘솔에서 `[UserAnalytics]` 로그 확인
+
+## 📈 활용 사례
+
+### **사용자 경험 최적화**
+- 사용자가 가장 많이 상호작용하는 영역 식별
+- 스크롤 패턴 분석으로 콘텐츠 배치 최적화
+- 폼 완성률 개선을 위한 문제 필드 식별
+
+### **전환율 개선**
+- 이탈 지점 분석
+- A/B 테스트 결과 측정
+- 사용자 여정 최적화
+
+### **성능 모니터링**
+- 페이지 로딩 성능 추적
+- 사용자 기기별 성능 차이 분석
+
+## 🔒 보안 및 개인정보
+
+- IP 주소는 해시화하여 저장
+- 민감한 폼 데이터는 수집하지 않음
+- GDPR 준수를 위한 옵트아웃 기능 제공 가능
+
+## 🤝 기여하기
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📄 라이센스
+
+MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 📞 지원
+
+문제가 발생하면 GitHub Issues에 등록하거나 개발자에게 문의하세요.
+
+---
+
+**🎉 이제 완전한 사용자 행동 분석 시스템을 사용할 준비가 되었습니다!**
 

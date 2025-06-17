@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .status {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #debug-output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>사용자 행동 분석 시스템 테스트</h1>
+    
+    <div class="test-section">
+        <h2>연결 상태</h2>
+        <div id="connection-status" class="status">백엔드 서버 연결을 확인하는 중...</div>
+        <button onclick="checkBackendConnection()">연결 재시도</button>
+    </div>
+
+    <div class="test-section">
+        <h2>분석 시스템 상태</h2>
+        <div id="analytics-status" class="status">분석 시스템을 초기화하는 중...</div>
+        <button onclick="initAnalytics()">분석 시작</button>
+        <button onclick="sendDataManually()">데이터 즉시 전송</button>
+        <button onclick="showCurrentData()">현재 데이터 보기</button>
+    </div>
+
+    <div class="test-section">
+        <h2>현재 세션 정보</h2>
+        <div id="session-info">
+            <p>세션 ID: <span id="session-id">-</span></p>
+            <p>클릭 수: <span id="click-count">0</span></p>
+            <p>스크롤 깊이: <span id="scroll-depth">0%</span></p>
+            <p>활성 영역: <span id="active-areas">0</span></p>
+        </div>
+    </div>
+
+    <div class="test-section area" data-area-id="test-area-1" data-area-name="테스트 영역 1">
+        <h2>테스트 영역 1</h2>
+        <p>이 영역에서 클릭하고 스크롤하면 데이터가 수집됩니다.</p>
+        <button onclick="generateTestEvents()">테스트 이벤트 생성</button>
+    </div>
+
+    <div class="test-section area" data-area-id="test-area-2" data-area-name="테스트 영역 2">
+        <h2>테스트 폼</h2>
+        <form id="test-form">
+            <div>
+                <label for="test-input">테스트 입력:</label>
+                <input type="text" id="test-input" name="test-input" placeholder="여기에 입력해보세요">
+            </div>
+            <div>
+                <label for="test-textarea">메시지:</label>
+                <textarea id="test-textarea" name="test-textarea" rows="3"></textarea>
+            </div>
+            <button type="submit">제출</button>
+        </form>
+    </div>
+
+    <div class="test-section">
+        <h2>디버그 출력</h2>
+        <button onclick="clearDebugOutput()">출력 지우기</button>
+        <div id="debug-output"></div>
+    </div>
+
+    <!-- 페이지 하단에 더 많은 콘텐츠 추가 (스크롤 테스트용) -->
+    <div style="height: 1000px; background: linear-gradient(to bottom, #f0f0f0, #ffffff);"></div>
+
+    <script>
+        let analyticsInitialized = false;
+        
+        // 디버그 출력 함수
+        function debugLog(message, type = 'info') {
+            const output = document.getElementById('debug-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            output.textContent += logEntry;
+            output.scrollTop = output.scrollHeight;
+            console.log(logEntry);
+        }
+
+        // 백엔드 연결 확인
+        async function checkBackendConnection() {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.textContent = '연결 확인 중...';
+            statusDiv.className = 'status';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/analytics/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    statusDiv.textContent = '✅ 백엔드 서버에 성공적으로 연결되었습니다!';
+                    statusDiv.className = 'status';
+                    debugLog('Backend connection successful');
+                    return true;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusDiv.textContent = `❌ 백엔드 서버 연결 실패: ${error.message}. 서버가 실행 중인지 확인하세요.`;
+                statusDiv.className = 'error';
+                debugLog(`Backend connection failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 분석 시스템 초기화
+        function initAnalytics() {
+            const statusDiv = document.getElementById('analytics-status');
+            
+            try {
+                // UserAnalytics 인스턴스가 있는지 확인
+                if (window.UserAnalytics) {
+                    statusDiv.textContent = '✅ 분석 시스템이 이미 실행 중입니다!';
+                    statusDiv.className = 'status';
+                    analyticsInitialized = true;
+                    debugLog('Analytics system already running');
+                    updateSessionInfo();
+                } else {
+                    throw new Error('UserAnalytics not loaded');
+                }
+            } catch (error) {
+                statusDiv.textContent = `❌ 분석 시스템 초기화 실패: ${error.message}`;
+                statusDiv.className = 'error';
+                debugLog(`Analytics initialization failed: ${error.message}`, 'error');
+            }
+        }
+
+        // 수동으로 데이터 전송
+        async function sendDataManually() {
+            if (!window.UserAnalytics) {
+                debugLog('Analytics system not available', 'error');
+                return;
+            }
+            
+            try {
+                await window.UserAnalytics.sendAnalyticsData();
+                debugLog('Manual data send triggered');
+            } catch (error) {
+                debugLog(`Manual data send failed: ${error.message}`, 'error');
+            }
+        }
+
+        // 현재 데이터 표시
+        function showCurrentData() {
+            if (!window.UserAnalytics) {
+                debugLog('Analytics system not available', 'error');
+                return;
+            }
+            
+            const data = window.UserAnalytics.analyticsData;
+            debugLog(`Current analytics data: ${JSON.stringify(data, null, 2)}`);
+        }
+
+        // 세션 정보 업데이트
+        function updateSessionInfo() {
+            if (!window.UserAnalytics) return;
+            
+            const stats = window.UserAnalytics.getCurrentStats();
+            document.getElementById('session-id').textContent = stats.sessionId.substring(0, 20) + '...';
+            document.getElementById('click-count').textContent = stats.clickCount || 0;
+            document.getElementById('scroll-depth').textContent = Math.round(stats.scrollDepth || 0) + '%';
+            document.getElementById('active-areas').textContent = stats.activeAreas || 0;
+        }
+
+        // 테스트 이벤트 생성
+        function generateTestEvents() {
+            // 여러 클릭 이벤트 시뮬레이션
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight;
+                    
+                    // 가상 클릭 이벤트 생성
+                    const clickEvent = new MouseEvent('click', {
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true
+                    });
+                    document.dispatchEvent(clickEvent);
+                }, i * 100);
+            }
+            
+            debugLog('Generated 5 test click events');
+        }
+
+        // 디버그 출력 지우기
+        function clearDebugOutput() {
+            document.getElementById('debug-output').textContent = '';
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', async () => {
+            debugLog('Page loaded, starting initialization...');
+            
+            // 백엔드 연결 확인
+            const connected = await checkBackendConnection();
+            
+            // 잠시 후 분석 시스템 상태 확인
+            setTimeout(() => {
+                initAnalytics();
+                
+                // 주기적으로 세션 정보 업데이트
+                setInterval(updateSessionInfo, 2000);
+            }, 1000);
+        });
+
+        // 분석 시스템 로드 확인
+        window.addEventListener('DOMContentLoaded', () => {
+            // analytics.js가 로드되었는지 확인
+            const script = document.createElement('script');
+            script.src = 'js/user-analytics.js';
+            script.onload = () => {
+                debugLog('Analytics script loaded successfully');
+            };
+            script.onerror = () => {
+                debugLog('Failed to load analytics script', 'error');
+            };
+            document.head.appendChild(script);
+        });
+    </script>
+</body>
+</html> 

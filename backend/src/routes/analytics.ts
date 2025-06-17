@@ -22,6 +22,16 @@ import logger from '../config/logger';
 
 const router = Router();
 
+// 헬스체크 API
+router.get('/health', (_req: Request, res: Response) => {
+  res.json({ 
+    success: true, 
+    message: 'Analytics API is running',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
 // 분석 데이터 수집 API
 router.post('/collect', validateBody(analyticsDataSchema), async (req: Request, res: Response) => {
   try {
