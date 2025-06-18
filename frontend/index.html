@@ -172,36 +172,57 @@
 
         .sidebar-header {
             background: #e9ecef;
-            padding: 20px;
+            padding: 15px 20px;
             border-radius: 8px 8px 0 0;
             font-weight: bold;
+            color: #495057;
+            margin-top: 20px;
+        }
+
+        .sidebar-header:first-child {
+            margin-top: 0;
         }
 
         .sidebar-content {
-            padding: 20px;
+            padding: 15px;
         }
 
         .sidebar-content ul {
             list-style: none;
             padding: 0;
-            margin: 0;
+            margin: 0 0 15px 0;
         }
 
         .sidebar-content li {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .sidebar-content a {
             color: #495057;
             text-decoration: none;
-            padding: 8px 12px;
+            padding: 10px 15px;
             display: block;
-            border-radius: 4px;
-            transition: background 0.3s ease;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            background: white;
+            border: 1px solid #dee2e6;
         }
 
         .sidebar-content a:hover {
             background: #e9ecef;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-content .dashboard-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-content .dashboard-link .icon {
+            font-size: 1.2em;
+            opacity: 0.8;
         }
 
         /* 콘텐츠 */
@@ -402,21 +423,66 @@
             </div>
             <div class="sidebar-content">
                 <ul>
-                    <li><a href="#section1">섹션 1으로 이동</a></li>
-                    <li><a href="#section2">섹션 2로 이동</a></li>
-                    <li><a href="#section3">섹션 3으로 이동</a></li>
-                    <li><a href="#analytics-info">분석 정보</a></li>
+                    <li><a href="#section1">
+                        <span class="dashboard-link">
+                            <span class="icon">📑</span>
+                            섹션 1으로 이동
+                        </span>
+                    </a></li>
+                    <li><a href="#section2">
+                        <span class="dashboard-link">
+                            <span class="icon">📑</span>
+                            섹션 2로 이동
+                        </span>
+                    </a></li>
+                    <li><a href="#section3">
+                        <span class="dashboard-link">
+                            <span class="icon">📑</span>
+                            섹션 3으로 이동
+                        </span>
+                    </a></li>
+                    <li><a href="#analytics-info">
+                        <span class="dashboard-link">
+                            <span class="icon">📊</span>
+                            분석 정보
+                        </span>
+                    </a></li>
                 </ul>
 
-                <div class="sidebar-header" style="margin-top: 20px;">
+                <div class="sidebar-header">
                     대시보드 바로가기
                 </div>
                 <ul>
-                    <li><a href="analytics-dashboard.html" target="_blank">📊 메인 대시보드</a></li>
-                    <li><a href="simple-dashboard.html" target="_blank">📈 간단 대시보드</a></li>
-                    <li><a href="dashboard.html" target="_blank">📉 상세 대시보드</a></li>
-                    <li><a href="debug-test.html" target="_blank">🔍 디버그 테스트</a></li>
-                    <li><a href="test-frontend.html" target="_blank">🛍️ 쇼핑몰 테스트</a></li>
+                    <li><a href="analytics-dashboard.html" target="_blank">
+                        <span class="dashboard-link">
+                            <span class="icon">📊</span>
+                            메인 대시보드
+                        </span>
+                    </a></li>
+                    <li><a href="simple-dashboard.html" target="_blank">
+                        <span class="dashboard-link">
+                            <span class="icon">📈</span>
+                            간단 대시보드
+                        </span>
+                    </a></li>
+                    <li><a href="dashboard.html" target="_blank">
+                        <span class="dashboard-link">
+                            <span class="icon">📉</span>
+                            상세 대시보드
+                        </span>
+                    </a></li>
+                    <li><a href="debug-test.html" target="_blank">
+                        <span class="dashboard-link">
+                            <span class="icon">🔍</span>
+                            디버그 테스트
+                        </span>
+                    </a></li>
+                    <li><a href="test-frontend.html" target="_blank">
+                        <span class="dashboard-link">
+                            <span class="icon">🛍️</span>
+                            쇼핑몰 테스트
+                        </span>
+                    </a></li>
                 </ul>
             </div>
         </aside>
