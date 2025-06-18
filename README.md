@@ -35,7 +35,7 @@ user-behavior-analytics/
 
 ### 프론트엔드
 - **플랫폼**: GitHub Pages
-- **URL**: https://analytics.brandiup.info
+- **URL**: https://whwnddml.github.io/user-behavior-analytics
 - **배포 방식**: GitHub Actions를 통한 자동 배포
 - **트리거**: `frontend/` 디렉토리 변경 시
 
@@ -330,3 +330,7 @@ postgres://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a:
 external-db-url : 
 postgresql://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a.oregon-postgres.render.com/uba_zfqs
 internal-db-url : postgresql://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a/uba_zfqs
+
+
+
+https://whwnddml.github.io/user-behavior-analytics/analytics-dashboard.html
