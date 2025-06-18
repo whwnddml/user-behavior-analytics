@@ -21,11 +21,15 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Copy files to root level
+        run: |
+          cp -r frontend/* .
+          
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./frontend
+          publish_dir: .
           publish_branch: gh-pages
           force_orphan: true
           enable_jekyll: false
