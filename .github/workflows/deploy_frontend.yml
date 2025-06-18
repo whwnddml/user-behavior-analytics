@@ -32,5 +32,4 @@ jobs:
           publish_dir: .
           publish_branch: gh-pages
           force_orphan: true
-          enable_jekyll: false
-          cname: analytics.brandiup.info  # 필요한 경우 사용자 정의 도메인 설정 
+          enable_jekyll: false 
