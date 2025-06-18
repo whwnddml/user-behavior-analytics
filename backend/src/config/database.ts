@@ -1,11 +1,11 @@
 import { Pool, PoolConfig } from 'pg';
-import { config } from './environment';
+import { config, isProduction } from './environment';
 
 const dbConfig: PoolConfig = config.database.url
   ? {
       // Render의 DATABASE_URL 사용
       connectionString: config.database.url,
-      ssl: config.isProduction ? { rejectUnauthorized: false } : false,
+      ssl: isProduction ? { rejectUnauthorized: false } : false,
       max: 10, // Render 무료 플랜 제한 고려
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
