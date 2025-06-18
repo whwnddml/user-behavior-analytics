@@ -6,7 +6,8 @@
 class UserAnalytics {
     constructor(config = {}) {
         // 기본 설정
-        const isProd = window.location.hostname !== 'localhost';
+        const hostname = window.location.hostname;
+        const isProd = hostname.includes('github.io') || hostname !== 'localhost';
         const defaultApiEndpoint = isProd 
             ? 'https://user-behavior-analytics.onrender.com/api/analytics'
             : 'http://localhost:3000/api/analytics';
