@@ -11,6 +11,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
 
@@ -24,4 +26,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./frontend
+          publish_branch: gh-pages
+          force_orphan: true
+          enable_jekyll: false
           cname: analytics.brandiup.info  # 필요한 경우 사용자 정의 도메인 설정 
