@@ -250,25 +250,21 @@ class UserAnalytics {
                     if (!areaData.firstEngagement) {
                         areaData.firstEngagement = currentTime;
                     }
-                    areaData.lastEngagement = currentTime;
                 }
+                
+                // 가시성 정보 업데이트
+                areaData.visibility.viewportPercent = Math.round(entry.intersectionRatio * 100);
             } else {
-                // 영역이 보이지 않음
-                if (this.trackingState.areaTimers.has(areaId)) {
-                    const startTime = this.trackingState.areaTimers.get(areaId);
+                // 영역이 보이지 않게 됨
+                const startTime = this.trackingState.areaTimers.get(areaId);
+                if (startTime) {
                     const timeSpent = currentTime - startTime;
-                    areaData.timeSpent += timeSpent;
-                    areaData.visibility.visibleTime += timeSpent;
-                    
+                    areaData.timeSpent = Math.round(areaData.timeSpent + timeSpent); // 소수점을 정수로 변환
+                    areaData.visibility.visibleTime = Math.round(areaData.visibility.visibleTime + timeSpent); // 소수점을 정수로 변환
+                    areaData.lastEngagement = currentTime;
                     this.trackingState.areaTimers.delete(areaId);
                 }
             }
-
-            // 뷰포트 비율 업데이트
-            areaData.visibility.viewportPercent = Math.max(
-                areaData.visibility.viewportPercent,
-                entry.intersectionRatio * 100
-            );
         });
     }
 
@@ -600,98 +596,80 @@ class UserAnalytics {
     }
 
     /**
+     * 숫자 값을 정수로 변환
+     */
+    ensureInteger(value) {
+        if (typeof value === 'number') {
+            return Math.round(value);
+        }
+        if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : Math.round(parsed);
+        }
+        return 0;
+    }
+
+    /**
      * 분석 데이터 전송
      */
     async sendAnalyticsData(isBeforeUnload = false) {
-        let payload;
         try {
-            // 현재 진행 중인 영역 타이머 업데이트
-            this.updateActiveAreaTimers();
-
-            // 날짜/시간 데이터를 ISO 문자열로 변환하는 헬퍼 함수
+            // 시간 값을 ISO 문자열로 변환하는 헬퍼 함수
             const toISOString = (value) => {
-                if (!value) return new Date().toISOString();
                 if (value instanceof Date) return value.toISOString();
-                if (typeof value === 'number') return new Date(value).toISOString();
-                return String(value);  // 문자열이 아닌 경우 문자열로 변환
+                return value;
             };
 
-            // 숫자 필드 검증 및 기본값 설정
+            // 숫자 값을 정수로 변환하는 헬퍼 함수
             const ensureNumber = (value, defaultValue = 0) => {
                 if (value === null || value === undefined) return defaultValue;
                 const num = Number(value);
-                return isNaN(num) ? defaultValue : Math.max(0, num);
+                return isNaN(num) ? defaultValue : Math.round(num);
             };
 
-            // 원본 데이터 로깅
-            this.log('Raw analytics data:', this.analyticsData);
+            // 현재 상태 업데이트
+            this.updateActiveAreaTimers();
 
-            payload = {
+            // 전송할 데이터 준비
+            const payload = {
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: this.analyticsData.pageUrl,
-                pageTitle: this.analyticsData.pageTitle || '',
+                pageTitle: this.analyticsData.pageTitle,
                 userAgent: this.analyticsData.userAgent,
                 startTime: toISOString(this.analyticsData.startTime),
-                
-                // 영역 데이터
-                areaEngagements: (this.analyticsData.areaEngagements || []).map(area => ({
-                    areaId: String(area.areaId),
-                    areaName: String(area.areaName),
-                    areaType: String(area.areaType || 'default'),
+                endTime: isBeforeUnload ? toISOString(new Date()) : null,
+                performance: {
+                    loadTime: ensureNumber(this.analyticsData.performance.loadTime),
+                    domContentLoaded: ensureNumber(this.analyticsData.performance.domContentLoaded),
+                    firstPaint: ensureNumber(this.analyticsData.performance.firstPaint),
+                    firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint)
+                },
+                areaEngagements: this.analyticsData.areaEngagements.map(area => ({
+                    areaId: area.areaId,
+                    areaName: area.areaName,
+                    areaType: area.areaType,
                     timeSpent: ensureNumber(area.timeSpent),
                     interactions: ensureNumber(area.interactions),
-                    firstEngagement: toISOString(area.firstEngagement || Date.now()),
-                    lastEngagement: toISOString(area.lastEngagement || Date.now()),
+                    firstEngagement: toISOString(area.firstEngagement),
+                    lastEngagement: toISOString(area.lastEngagement),
                     visibility: {
-                        visibleTime: ensureNumber(area.visibility?.visibleTime),
-                        viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
+                        visibleTime: ensureNumber(area.visibility.visibleTime),
+                        viewportPercent: ensureNumber(area.visibility.viewportPercent)
                     }
                 })),
-
-                // 스크롤 데이터
                 scrollMetrics: {
-                    deepestScroll: Math.min(100, Math.max(0, ensureNumber(this.analyticsData.scrollMetrics?.deepestScroll))),
-                    scrollDepthBreakpoints: {
-                        25: ensureNumber(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[25]),
-                        50: ensureNumber(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[50]),
-                        75: ensureNumber(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[75]),
-                        100: ensureNumber(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[100])
-                    },
-                    scrollPattern: (this.analyticsData.scrollMetrics?.scrollPattern || []).map(pattern => ({
-                        position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
-                        timestamp: toISOString(pattern.timestamp || Date.now()),
-                        direction: pattern.direction || 'down',
-                        speed: ensureNumber(pattern.speed)
+                    deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
+                    scrollDepthBreakpoints: Object.entries(this.analyticsData.scrollMetrics.scrollDepthBreakpoints)
+                        .reduce((acc, [key, value]) => {
+                            acc[key] = toISOString(value);
+                            return acc;
+                        }, {}),
+                    scrollPattern: this.analyticsData.scrollMetrics.scrollPattern.map(pattern => ({
+                        position: ensureNumber(pattern.position),
+                        direction: pattern.direction,
+                        speed: ensureNumber(pattern.speed),
+                        timestamp: toISOString(pattern.timestamp)
                     }))
-                },
-
-                // 상호작용 데이터
-                interactionMap: (this.analyticsData.interactionMap || []).map(interaction => ({
-                    x: ensureNumber(interaction.x),
-                    y: ensureNumber(interaction.y),
-                    type: interaction.type || 'click',
-                    targetElement: String(interaction.targetElement || 'unknown'),
-                    timestamp: toISOString(interaction.timestamp || Date.now()),
-                    areaId: interaction.areaId ? String(interaction.areaId) : null
-                })),
-
-                // 폼 분석 데이터
-                formAnalytics: (this.analyticsData.formAnalytics || []).map(form => ({
-                    formId: String(form.formId),
-                    fieldName: String(form.fieldName),
-                    interactionType: String(form.interactionType),
-                    timeSpent: ensureNumber(form.timeSpent),
-                    errorCount: ensureNumber(form.errorCount),
-                    completed: Boolean(form.completed)
-                })),
-
-                // 성능 메트릭
-                performance: {
-                    loadTime: ensureNumber(this.analyticsData.performance?.loadTime),
-                    domContentLoaded: ensureNumber(this.analyticsData.performance?.domContentLoaded),
-                    firstPaint: ensureNumber(this.analyticsData.performance?.firstPaint),
-                    firstContentfulPaint: ensureNumber(this.analyticsData.performance?.firstContentfulPaint),
-                    navigationtype: ensureNumber(this.analyticsData.performance?.navigationtype)
                 }
             };
 
