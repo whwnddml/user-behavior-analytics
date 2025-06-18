@@ -7,8 +7,7 @@ class UserAnalytics {
     constructor(config = {}) {
         // 기본 설정
         const hostname = window.location.hostname;
-        const isProd = hostname.includes('github.io') || 
-            (hostname !== 'localhost' && hostname !== '127.0.0.1');
+        const isProd = hostname.includes('github.io');
         
         // API 엔드포인트 설정
         const defaultApiEndpoint = isProd 
