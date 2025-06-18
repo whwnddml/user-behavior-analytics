@@ -779,7 +779,6 @@ class UserAnalytics {
 // 전역 인스턴스 생성
 window.UserAnalytics = new UserAnalytics({
     debug: true, // 개발 중에는 디버그 모드 활성화
-    apiEndpoint: 'http://localhost:3000/api/analytics',
     sendInterval: 30000 // 30초마다 전송
 });
 
