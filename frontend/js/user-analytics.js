@@ -621,56 +621,99 @@ class UserAnalytics {
                 return isNaN(num) ? defaultValue : num;
             };
 
+            // 데이터 구조 검증
+            const validateData = (data, path = '') => {
+                if (!data) {
+                    this.log(`Warning: Missing data at ${path}`);
+                    return false;
+                }
+                if (typeof data === 'object') {
+                    Object.entries(data).forEach(([key, value]) => {
+                        validateData(value, path ? `${path}.${key}` : key);
+                    });
+                }
+                return true;
+            };
+
+            // 원본 데이터 로깅
+            this.log('Raw analytics data:', {
+                sessionId: this.analyticsData.sessionId,
+                pageUrl: this.analyticsData.pageUrl,
+                pageTitle: this.analyticsData.pageTitle,
+                startTime: this.analyticsData.startTime,
+                scrollMetrics: this.analyticsData.scrollMetrics,
+                areaEngagements: this.analyticsData.areaEngagements,
+                interactionMap: this.analyticsData.interactionMap,
+                formAnalytics: this.analyticsData.formAnalytics,
+                performance: this.analyticsData.performance
+            });
+
             const payload = {
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: this.analyticsData.pageUrl,
                 pageTitle: this.analyticsData.pageTitle || '',
                 userAgent: this.analyticsData.userAgent,
                 startTime: toISOString(this.analyticsData.startTime),
-                areaEngagements: this.analyticsData.areaEngagements.map(area => ({
-                    areaId: area.areaId,
-                    areaName: area.areaName,
-                    areaType: area.areaType || 'default',
-                    timeSpent: ensureNumber(area.timeSpent),
-                    interactions: ensureNumber(area.interactions),
-                    firstEngagement: toISOString(area.firstEngagement),
-                    lastEngagement: toISOString(area.lastEngagement),
-                    visibility: {
-                        visibleTime: ensureNumber(area.visibility?.visibleTime),
-                        viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
-                    }
-                })),
+                areaEngagements: (this.analyticsData.areaEngagements || []).map(area => {
+                    const engagement = {
+                        areaId: area.areaId,
+                        areaName: area.areaName,
+                        areaType: area.areaType || 'default',
+                        timeSpent: ensureNumber(area.timeSpent),
+                        interactions: ensureNumber(area.interactions),
+                        firstEngagement: toISOString(area.firstEngagement),
+                        lastEngagement: toISOString(area.lastEngagement),
+                        visibility: {
+                            visibleTime: ensureNumber(area.visibility?.visibleTime),
+                            viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
+                        }
+                    };
+                    validateData(engagement, `areaEngagements[${area.areaId}]`);
+                    return engagement;
+                }),
                 scrollMetrics: {
-                    deepestScroll: Math.min(100, Math.max(0, ensureNumber(this.analyticsData.scrollMetrics.deepestScroll))),
+                    deepestScroll: Math.min(100, Math.max(0, ensureNumber(this.analyticsData.scrollMetrics?.deepestScroll))),
                     scrollDepthBreakpoints: {
-                        25: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[25]),
-                        50: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[50]),
-                        75: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[75]),
-                        100: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[100])
+                        25: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[25]),
+                        50: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[50]),
+                        75: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[75]),
+                        100: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[100])
                     },
-                    scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
-                        position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
-                        timestamp: toISOString(pattern.timestamp),
-                        direction: pattern.direction || 'down',
-                        speed: ensureNumber(pattern.speed)
-                    }))
+                    scrollPattern: (this.analyticsData.scrollMetrics?.scrollPattern || []).map(pattern => {
+                        const p = {
+                            position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
+                            timestamp: toISOString(pattern.timestamp),
+                            direction: pattern.direction || 'down',
+                            speed: ensureNumber(pattern.speed)
+                        };
+                        validateData(p, 'scrollPattern');
+                        return p;
+                    })
                 },
-                interactionMap: (this.analyticsData.interactionMap || []).map(interaction => ({
-                    x: ensureNumber(interaction.x),
-                    y: ensureNumber(interaction.y),
-                    type: interaction.type || 'click',
-                    targetElement: interaction.targetElement || 'unknown',
-                    timestamp: toISOString(interaction.timestamp),
-                    areaId: interaction.areaId || null
-                })),
-                formAnalytics: (this.analyticsData.formAnalytics || []).map(form => ({
-                    formId: form.formId,
-                    fieldName: form.fieldName,
-                    interactionType: form.interactionType,
-                    timeSpent: ensureNumber(form.timeSpent),
-                    errorCount: ensureNumber(form.errorCount),
-                    completed: Boolean(form.completed)
-                })),
+                interactionMap: (this.analyticsData.interactionMap || []).map(interaction => {
+                    const i = {
+                        x: ensureNumber(interaction.x),
+                        y: ensureNumber(interaction.y),
+                        type: interaction.type || 'click',
+                        targetElement: interaction.targetElement || 'unknown',
+                        timestamp: toISOString(interaction.timestamp),
+                        areaId: interaction.areaId || null
+                    };
+                    validateData(i, 'interactionMap');
+                    return i;
+                }),
+                formAnalytics: (this.analyticsData.formAnalytics || []).map(form => {
+                    const f = {
+                        formId: form.formId,
+                        fieldName: form.fieldName,
+                        interactionType: form.interactionType,
+                        timeSpent: ensureNumber(form.timeSpent),
+                        errorCount: ensureNumber(form.errorCount),
+                        completed: Boolean(form.completed)
+                    };
+                    validateData(f, 'formAnalytics');
+                    return f;
+                }),
                 performance: {
                     loadTime: ensureNumber(this.analyticsData.performance?.loadTime),
                     domContentLoaded: ensureNumber(this.analyticsData.performance?.domContentLoaded),
@@ -680,7 +723,8 @@ class UserAnalytics {
                 }
             };
 
-            this.log('Sending analytics data:', payload);
+            validateData(payload, 'root');
+            this.log('Processed payload:', payload);
 
             const response = await fetch(`${this.config.apiEndpoint}/collect`, {
                 method: 'POST',
@@ -705,13 +749,18 @@ class UserAnalytics {
                 } catch {
                     errorMessage = errorText || response.statusText;
                 }
+                this.log('Server response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorMessage
+                });
                 throw new Error(`HTTP ${response.status}: ${errorMessage}`);
             }
 
         } catch (error) {
             this.log('Error sending analytics data:', error);
             if (error.message.includes('400')) {
-                this.log('Last sent payload:', this.lastSentPayload);
+                this.log('Last sent payload:', payload);
             }
         }
     }
