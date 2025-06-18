@@ -607,30 +607,49 @@ class UserAnalytics {
             // 현재 진행 중인 영역 타이머 업데이트
             this.updateActiveAreaTimers();
 
+            // 날짜/시간 데이터를 ISO 문자열로 변환하는 헬퍼 함수
+            const toISOString = (value) => {
+                if (!value) return null;
+                if (value instanceof Date) return value.toISOString();
+                if (typeof value === 'number') return new Date(value).toISOString();
+                return value;
+            };
+
             const payload = {
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: this.analyticsData.pageUrl,
-                pageTitle: this.analyticsData.pageTitle,
+                pageTitle: this.analyticsData.pageTitle || '',
                 userAgent: this.analyticsData.userAgent,
-                startTime: this.analyticsData.startTime.toISOString(),
+                startTime: toISOString(this.analyticsData.startTime),
                 areaEngagements: this.analyticsData.areaEngagements.map(area => ({
                     ...area,
-                    firstEngagement: area.firstEngagement?.toISOString(),
-                    lastEngagement: area.lastEngagement?.toISOString()
+                    firstEngagement: toISOString(area.firstEngagement),
+                    lastEngagement: toISOString(area.lastEngagement)
                 })),
                 scrollMetrics: {
                     ...this.analyticsData.scrollMetrics,
+                    scrollDepthBreakpoints: this.analyticsData.scrollMetrics.scrollDepthBreakpoints || {
+                        25: null,
+                        50: null,
+                        75: null,
+                        100: null
+                    },
                     scrollPattern: this.analyticsData.scrollMetrics.scrollPattern.map(pattern => ({
                         ...pattern,
-                        timestamp: typeof pattern.timestamp === 'number' ? new Date(pattern.timestamp).toISOString() : pattern.timestamp
+                        timestamp: toISOString(pattern.timestamp)
                     }))
                 },
                 interactionMap: this.analyticsData.interactionMap.map(interaction => ({
                     ...interaction,
-                    timestamp: typeof interaction.timestamp === 'number' ? new Date(interaction.timestamp).toISOString() : interaction.timestamp
+                    timestamp: toISOString(interaction.timestamp)
                 })),
-                formAnalytics: this.analyticsData.formAnalytics,
-                performance: this.analyticsData.performance
+                formAnalytics: this.analyticsData.formAnalytics || [],
+                performance: this.analyticsData.performance || {
+                    loadTime: 0,
+                    domContentLoaded: 0,
+                    firstPaint: 0,
+                    firstContentfulPaint: 0
+                }
             };
 
             this.log('Sending analytics data:', payload);
@@ -651,8 +670,15 @@ class UserAnalytics {
                 // 전송 성공 후 일부 데이터 초기화 (누적 방지)
                 this.resetTransientData();
             } else {
-                const errorData = await response.json();
-                throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+                const errorText = await response.text();
+                let errorMessage;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.error || errorData.message || response.statusText;
+                } catch {
+                    errorMessage = errorText || response.statusText;
+                }
+                throw new Error(`HTTP ${response.status}: ${errorMessage}`);
             }
 
         } catch (error) {
