@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영역 추적 디버깅</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .area {
+            border: 2px solid #007bff;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .area:hover {
+            background: #e9ecef;
+            border-color: #0056b3;
+        }
+        .debug-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #28a745;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 300px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .debug-panel h3 {
+            margin-top: 0;
+            color: #28a745;
+        }
+        .debug-info {
+            font-family: monospace;
+            font-size: 12px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 영역 추적 디버깅 페이지</h1>
+    
+    <div class="debug-panel">
+        <h3>디버깅 도구</h3>
+        <button onclick="checkAreas()">영역 확인</button>
+        <button onclick="testClicks()">클릭 테스트</button>
+        <button onclick="sendData()">데이터 전송</button>
+        <button onclick="clearLog()">로그 지우기</button>
+        <div class="debug-info">
+            <div>감지된 영역: <span id="area-count">0</span></div>
+            <div>UserAnalytics: <span id="analytics-status">확인중...</span></div>
+            <div>세션 ID: <span id="session-id">-</span></div>
+        </div>
+        <div id="log"></div>
+    </div>
+
+    <!-- 테스트 영역들 -->
+    <div class="area" data-area-id="header" data-area-name="헤더">
+        <h2>🏠 헤더 영역</h2>
+        <p>이것은 헤더 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <div class="area" data-area-id="top-banner" data-area-name="상단 배너">
+        <h2>📢 상단 배너 영역</h2>
+        <p>이것은 상단 배너 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <div class="area" data-area-id="main-content" data-area-name="메인 콘텐츠">
+        <h2>📄 메인 콘텐츠 영역</h2>
+        <p>이것은 메인 콘텐츠 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <div class="area" data-area-id="coupon-download" data-area-name="쿠폰 다운로드">
+        <h2>🎫 쿠폰 다운로드 영역</h2>
+        <p>이것은 쿠폰 다운로드 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <div class="area" data-area-id="detail-page" data-area-name="상세 페이지">
+        <h2>📋 상세 페이지 영역</h2>
+        <p>이것은 상세 페이지 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <div class="area" data-area-id="bottom-banner" data-area-name="하단 배너">
+        <h2>🚀 하단 배너 영역</h2>
+        <p>이것은 하단 배너 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <div class="area" data-area-id="footer" data-area-name="푸터">
+        <h2>⬇️ 푸터 영역</h2>
+        <p>이것은 푸터 영역입니다. 클릭해보세요!</p>
+    </div>
+
+    <!-- UserAnalytics 스크립트 -->
+    <script src="js/user-analytics.js"></script>
+
+    <script>
+        let clickCount = 0;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function checkAreas() {
+            const areas = document.querySelectorAll('.area[data-area-id]');
+            log(`총 ${areas.length}개 영역 발견:`);
+            
+            areas.forEach((area, index) => {
+                const areaId = area.getAttribute('data-area-id');
+                const areaName = area.getAttribute('data-area-name');
+                log(`${index + 1}. ID: ${areaId}, 이름: ${areaName}`);
+            });
+
+            document.getElementById('area-count').textContent = areas.length;
+
+            if (window.UserAnalytics) {
+                log('✅ UserAnalytics 로드됨');
+                document.getElementById('analytics-status').textContent = '로드됨';
+                document.getElementById('session-id').textContent = window.UserAnalytics.analyticsData.sessionId.slice(-8);
+                
+                if (window.UserAnalytics.analyticsData.areaEngagements) {
+                    log(`현재 영역 참여 데이터: ${window.UserAnalytics.analyticsData.areaEngagements.length}개`);
+                    window.UserAnalytics.analyticsData.areaEngagements.forEach(engagement => {
+                        log(`  - ${engagement.areaName} (${engagement.areaId}): ${engagement.timeSpent}ms`);
+                    });
+                }
+            } else {
+                log('❌ UserAnalytics 로드 실패');
+                document.getElementById('analytics-status').textContent = '로드 실패';
+            }
+        }
+
+        function testClicks() {
+            log('=== 클릭 테스트 시작 ===');
+            const areas = document.querySelectorAll('.area[data-area-id]');
+            
+            areas.forEach((area, index) => {
+                setTimeout(() => {
+                    const areaId = area.getAttribute('data-area-id');
+                    const areaName = area.getAttribute('data-area-name');
+                    
+                    // 클릭 이벤트 생성
+                    const clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    });
+                    
+                    area.dispatchEvent(clickEvent);
+                    log(`클릭 테스트: ${areaName} (${areaId})`);
+                    
+                    // 시각적 피드백
+                    area.style.background = '#d4edda';
+                    setTimeout(() => {
+                        area.style.background = '#f8f9fa';
+                    }, 200);
+                    
+                }, index * 300);
+            });
+
+            setTimeout(() => {
+                log('=== 클릭 테스트 완료 ===');
+                if (window.UserAnalytics) {
+                    log('현재 분석 데이터:');
+                    log(JSON.stringify(window.UserAnalytics.analyticsData, null, 2));
+                }
+            }, areas.length * 300 + 500);
+        }
+
+        async function sendData() {
+            if (!window.UserAnalytics) {
+                log('❌ UserAnalytics를 사용할 수 없습니다');
+                return;
+            }
+
+            try {
+                log('📤 데이터 전송 시도...');
+                await window.UserAnalytics.sendAnalyticsData();
+                log('✅ 데이터 전송 완료');
+            } catch (error) {
+                log(`❌ 데이터 전송 실패: ${error.message}`);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // 영역 클릭 이벤트 리스너
+        document.addEventListener('click', function(e) {
+            const area = e.target.closest('.area');
+            if (area) {
+                clickCount++;
+                const areaId = area.getAttribute('data-area-id');
+                const areaName = area.getAttribute('data-area-name');
+                log(`클릭 이벤트: ${areaName} (${areaId}) - 총 ${clickCount}번째`);
+            }
+        });
+
+        // 페이지 로드 후 자동 확인
+        window.addEventListener('load', () => {
+            log('페이지 로드 완료');
+            setTimeout(() => {
+                checkAreas();
+            }, 1000);
+        });
+
+        // UserAnalytics 로드 확인
+        let checkCount = 0;
+        const checkAnalytics = setInterval(() => {
+            checkCount++;
+            if (window.UserAnalytics) {
+                log('UserAnalytics 인스턴스 감지됨');
+                clearInterval(checkAnalytics);
+            } else if (checkCount > 10) {
+                log('UserAnalytics 로드 타임아웃');
+                clearInterval(checkAnalytics);
+            }
+        }, 500);
+    </script>
+</body>
+</html> 

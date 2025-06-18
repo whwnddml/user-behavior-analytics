@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쇼핑몰 테스트 페이지 - 행동 분석</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        /* 헤더 영역 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+
+        .nav-menu a:hover {
+            opacity: 0.8;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* 상단 배너 */
+        .top-banner {
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* 메인 컨테이너 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 메인 콘텐츠 */
+        .main-content {
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .product-showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .product-info h1 {
+            font-size: 2.5em;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .product-price {
+            font-size: 2em;
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .product-image {
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+            height: 300px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        /* 쿠폰 다운로드 버튼 */
+        .coupon-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .coupon-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.1) 10px,
+                rgba(255,255,255,0.1) 20px
+            );
+            animation: move 20s linear infinite;
+        }
+
+        @keyframes move {
+            0% { transform: translate(-50%, -50%); }
+            100% { transform: translate(-40%, -40%); }
+        }
+
+        .coupon-button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .coupon-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+        }
+
+        /* 중앙 상세 페이지 */
+        .detail-section {
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin: 2rem 0;
+        }
+
+        .detail-tabs {
+            display: flex;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 2rem;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 하단 배너 */
+        .bottom-banner {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 3rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .bottom-banner h2 {
+            font-size: 2em;
+            margin-bottom: 1rem;
+        }
+
+        .banner-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            background: rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* 푸터 */
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 3rem 0;
+            margin-top: 3rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            padding: 0 2rem;
+        }
+
+        .footer-section h3 {
+            margin-bottom: 1rem;
+            color: #ecf0f1;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-section ul li a {
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-section ul li a:hover {
+            color: #ecf0f1;
+        }
+
+        /* 분석 시스템 상태 패널 */
+        .analytics-panel {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            min-width: 250px;
+            z-index: 1001;
+            border-left: 4px solid #667eea;
+        }
+
+        .analytics-panel h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 0.9em;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.3rem 0;
+            font-size: 0.8em;
+        }
+
+        .status-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* 버튼 스타일 */
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* 폼 스타일 */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .product-showcase {
+                grid-template-columns: 1fr;
+            }
+
+            .banner-features {
+                grid-template-columns: 1fr;
+            }
+
+            .analytics-panel {
+                position: relative;
+                top: 0;
+                right: 0;
+                margin: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 영역 -->
+    <header class="header area" data-area-id="header" data-area-name="헤더">
+        <div class="header-content">
+            <div class="logo">🛍️ ShopMall</div>
+            <nav class="nav-menu">
+                <a href="#" onclick="trackNavClick('홈')">홈</a>
+                <a href="#" onclick="trackNavClick('상품')">상품</a>
+                <a href="#" onclick="trackNavClick('이벤트')">이벤트</a>
+                <a href="#" onclick="trackNavClick('고객센터')">고객센터</a>
+            </nav>
+            <div class="user-actions">
+                <button class="btn btn-secondary" onclick="trackAction('로그인')">로그인</button>
+                <button class="btn" onclick="trackAction('회원가입')">회원가입</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 상단 배너 -->
+    <div class="top-banner area" data-area-id="top-banner" data-area-name="상단 배너">
+        🎉 특별 할인! 모든 상품 30% 할인 이벤트 진행중! 놓치지 마세요! 🎉
+    </div>
+
+    <div class="container">
+        <!-- 메인 콘텐츠 -->
+        <section class="main-content area" data-area-id="main-content" data-area-name="메인 콘텐츠">
+            <div class="product-showcase">
+                <div class="product-info">
+                    <h1>프리미엄 무선 이어폰</h1>
+                    <p>최신 기술로 제작된 고음질 무선 이어폰입니다. 노이즈 캔슬링 기능과 48시간 연속 재생이 가능합니다.</p>
+                    <div class="product-price">₩129,000</div>
+                    <div style="margin: 2rem 0;">
+                        <button class="btn" onclick="trackAction('장바구니 추가')" style="margin-right: 1rem;">🛒 장바구니</button>
+                        <button class="btn" onclick="trackAction('바로 구매')" style="background: #e74c3c;">💳 바로 구매</button>
+                    </div>
+                    <div>
+                        <span>⭐⭐⭐⭐⭐ 4.8/5.0 (1,234개 리뷰)</span>
+                    </div>
+                </div>
+                <div class="product-image">
+                    📱 상품 이미지
+                </div>
+            </div>
+        </section>
+
+        <!-- 쿠폰 다운로드 버튼 -->
+        <section class="coupon-section area" data-area-id="coupon-download" data-area-name="쿠폰 다운로드">
+            <h2>🎫 한정 특가 쿠폰</h2>
+            <p>지금 다운로드하면 추가 10% 할인!</p>
+            <button class="coupon-button" onclick="downloadCoupon()">
+                쿠폰 다운로드 받기
+            </button>
+            <div style="margin-top: 1rem; font-size: 0.9em; opacity: 0.9;">
+                ⏰ 남은 시간: 23:45:12 | 💾 다운로드 수: 1,234/5,000
+            </div>
+        </section>
+
+        <!-- 중앙 상세 페이지 -->
+        <section class="detail-section area" data-area-id="detail-page" data-area-name="상세 페이지">
+            <div class="detail-tabs">
+                <button class="tab-button active" onclick="showTab('description')">상품 상세</button>
+                <button class="tab-button" onclick="showTab('reviews')">리뷰 (1,234)</button>
+                <button class="tab-button" onclick="showTab('qna')">Q&A (56)</button>
+                <button class="tab-button" onclick="showTab('shipping')">배송/교환</button>
+            </div>
+            
+            <div id="description" class="tab-content active">
+                <h3>상품 상세 정보</h3>
+                <p>이 제품은 최신 Bluetooth 5.3 기술을 사용하여 안정적인 연결과 고음질 사운드를 제공합니다.</p>
+                <ul style="margin: 1rem 0; padding-left: 2rem;">
+                    <li>노이즈 캔슬링 기능</li>
+                    <li>48시간 연속 재생</li>
+                    <li>IPX7 방수 등급</li>
+                    <li>터치 컨트롤</li>
+                    <li>무선 충전 지원</li>
+                </ul>
+                
+                <div class="form-group" style="margin-top: 2rem;">
+                    <label for="quantity">수량 선택:</label>
+                    <select id="quantity" onchange="trackAction('수량 변경')">
+                        <option value="1">1개</option>
+                        <option value="2">2개 (5% 할인)</option>
+                        <option value="3">3개 (10% 할인)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="reviews" class="tab-content">
+                <h3>고객 리뷰</h3>
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                    <strong>김○○님</strong> ⭐⭐⭐⭐⭐
+                    <p>"정말 음질이 좋아요! 노이즈 캔슬링도 훌륭합니다."</p>
+                </div>
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                    <strong>이○○님</strong> ⭐⭐⭐⭐⭐
+                    <p>"배터리가 정말 오래가네요. 하루 종일 사용해도 괜찮아요."</p>
+                </div>
+                <button class="btn" onclick="trackAction('리뷰 더보기')">리뷰 더보기</button>
+            </div>
+            
+            <div id="qna" class="tab-content">
+                <h3>자주 묻는 질문</h3>
+                <div style="margin: 1rem 0;">
+                    <strong>Q: 안드로이드와 iOS 모두 호환되나요?</strong>
+                    <p>A: 네, 모든 Bluetooth 지원 기기와 호환됩니다.</p>
+                </div>
+                <div style="margin: 1rem 0;">
+                    <strong>Q: A/S 기간은 얼마나 되나요?</strong>
+                    <p>A: 구매일로부터 1년간 무상 A/S를 제공합니다.</p>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <h4>질문하기</h4>
+                    <div class="form-group">
+                        <label for="question">질문 내용:</label>
+                        <textarea id="question" placeholder="궁금한 내용을 입력해주세요" rows="3"></textarea>
+                    </div>
+                    <button class="btn" onclick="trackAction('질문 등록')">질문 등록</button>
+                </div>
+            </div>
+            
+            <div id="shipping" class="tab-content">
+                <h3>배송 및 교환 정보</h3>
+                <p><strong>배송비:</strong> 3만원 이상 무료배송</p>
+                <p><strong>배송 기간:</strong> 평일 기준 1-2일</p>
+                <p><strong>교환/반품:</strong> 배송완료 후 7일 이내 가능</p>
+            </div>
+        </section>
+
+        <!-- 하단 배너 -->
+        <section class="bottom-banner area" data-area-id="bottom-banner" data-area-name="하단 배너">
+            <h2>🚀 ShopMall만의 특별한 서비스</h2>
+            <p>고객 만족을 위한 다양한 혜택을 제공합니다</p>
+            <div class="banner-features">
+                <div class="feature-item" onclick="trackAction('무료배송 클릭')">
+                    <h4>🚚 무료배송</h4>
+                    <p>3만원 이상 주문시 전국 무료배송</p>
+                </div>
+                <div class="feature-item" onclick="trackAction('당일배송 클릭')">
+                    <h4>⚡ 당일배송</h4>
+                    <p>오후 2시 이전 주문시 당일 발송</p>
+                </div>
+                <div class="feature-item" onclick="trackAction('포인트적립 클릭')">
+                    <h4>💰 포인트 적립</h4>
+                    <p>구매금액의 5% 포인트 적립</p>
+                </div>
+                <div class="feature-item" onclick="trackAction('AS보장 클릭')">
+                    <h4>🔧 A/S 보장</h4>
+                    <p>1년 무상 A/S 및 품질보증</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 푸터 -->
+    <footer class="footer area" data-area-id="footer" data-area-name="푸터">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>회사 정보</h3>
+                <ul>
+                    <li><a href="#" onclick="trackAction('회사소개')">회사소개</a></li>
+                    <li><a href="#" onclick="trackAction('채용정보')">채용정보</a></li>
+                    <li><a href="#" onclick="trackAction('이용약관')">이용약관</a></li>
+                    <li><a href="#" onclick="trackAction('개인정보처리방침')">개인정보처리방침</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>고객센터</h3>
+                <ul>
+                    <li><a href="#" onclick="trackAction('FAQ')">자주 묻는 질문</a></li>
+                    <li><a href="#" onclick="trackAction('1:1문의')">1:1 문의</a></li>
+                    <li><a href="#" onclick="trackAction('전화상담')">📞 1588-1234</a></li>
+                    <li><a href="#" onclick="trackAction('카톡상담')">💬 카카오톡 상담</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>쇼핑 가이드</h3>
+                <ul>
+                    <li><a href="#" onclick="trackAction('주문방법')">주문 방법</a></li>
+                    <li><a href="#" onclick="trackAction('결제방법')">결제 방법</a></li>
+                    <li><a href="#" onclick="trackAction('배송안내')">배송 안내</a></li>
+                    <li><a href="#" onclick="trackAction('교환반품')">교환/반품</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>소셜 미디어</h3>
+                <ul>
+                    <li><a href="#" onclick="trackAction('인스타그램')">📷 Instagram</a></li>
+                    <li><a href="#" onclick="trackAction('페이스북')">📘 Facebook</a></li>
+                    <li><a href="#" onclick="trackAction('유튜브')">📺 YouTube</a></li>
+                    <li><a href="#" onclick="trackAction('블로그')">✍️ Blog</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 분석 시스템 상태 패널 -->
+    <div class="analytics-panel">
+        <h4>📊 실시간 분석 상태</h4>
+        <div class="status-item">
+            <span>연결 상태:</span>
+            <span class="status-value" id="connection-status">확인중...</span>
+        </div>
+        <div class="status-item">
+            <span>세션 ID:</span>
+            <span class="status-value" id="session-id">-</span>
+        </div>
+        <div class="status-item">
+            <span>클릭 수:</span>
+            <span class="status-value" id="click-count">0</span>
+        </div>
+        <div class="status-item">
+            <span>스크롤 깊이:</span>
+            <span class="status-value" id="scroll-depth">0%</span>
+        </div>
+        <div class="status-item">
+            <span>활성 영역:</span>
+            <span class="status-value" id="active-areas">0</span>
+        </div>
+        <div style="margin-top: 1rem;">
+            <button class="btn" onclick="sendDataManually()" style="font-size: 0.8em; padding: 0.5rem 1rem;">데이터 전송</button>
+            <button class="btn btn-secondary" onclick="showAnalyticsData()" style="font-size: 0.8em; padding: 0.5rem 1rem;">상세 보기</button>
+        </div>
+        <div style="margin-top: 0.5rem;">
+            <button class="btn btn-secondary" onclick="debugAreaTracking()" style="font-size: 0.8em; padding: 0.5rem 1rem;">영역 디버깅</button>
+            <button class="btn" onclick="manualTest()" style="font-size: 0.8em; padding: 0.5rem 1rem;">수동 테스트</button>
+        </div>
+    </div>
+
+    <!-- UserAnalytics 스크립트 -->
+    <script src="js/user-analytics.js"></script>
+
+    <script>
+        let analyticsInitialized = false;
+        let clickCount = 0;
+        let currentScrollDepth = 0;
+        let activeAreas = new Set();
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initAnalytics();
+            updateStatus();
+            
+            // 스크롤 깊이 추적
+            window.addEventListener('scroll', trackScrollDepth);
+            
+            // 클릭 이벤트 추적
+            document.addEventListener('click', function(e) {
+                clickCount++;
+                updateClickCount();
+                
+                // 영역별 클릭 추적
+                const area = e.target.closest('.area');
+                if (area) {
+                    const areaId = area.getAttribute('data-area-id');
+                    const areaName = area.getAttribute('data-area-name');
+                    if (areaId) {
+                        activeAreas.add(areaId);
+                        updateActiveAreas();
+                        console.log(`클릭 추적: ${areaName} (${areaId})`);
+                    }
+                }
+            });
+        });
+
+        // 분석 시스템 초기화
+        function initAnalytics() {
+            if (window.UserAnalytics) {
+                analyticsInitialized = true;
+                updateConnectionStatus('연결됨');
+                updateSessionId();
+                console.log('✅ 분석 시스템 초기화 완료');
+            } else {
+                console.log('❌ UserAnalytics를 찾을 수 없습니다');
+                updateConnectionStatus('오류');
+                setTimeout(initAnalytics, 1000); // 1초 후 재시도
+            }
+        }
+
+        // 상태 업데이트 함수들
+        function updateConnectionStatus(status) {
+            const element = document.getElementById('connection-status');
+            if (element) element.textContent = status;
+        }
+
+        function updateSessionId() {
+            if (window.UserAnalytics && window.UserAnalytics.sessionId) {
+                const shortId = window.UserAnalytics.sessionId.slice(-8);
+                const element = document.getElementById('session-id');
+                if (element) element.textContent = shortId;
+            }
+        }
+
+        function updateClickCount() {
+            const element = document.getElementById('click-count');
+            if (element) element.textContent = clickCount;
+        }
+
+        function updateScrollDepth() {
+            const element = document.getElementById('scroll-depth');
+            if (element) element.textContent = currentScrollDepth + '%';
+        }
+
+        function updateActiveAreas() {
+            const element = document.getElementById('active-areas');
+            if (element) element.textContent = activeAreas.size;
+        }
+
+        function updateStatus() {
+            updateConnectionStatus(analyticsInitialized ? '연결됨' : '연결중...');
+            updateClickCount();
+            updateScrollDepth();
+            updateActiveAreas();
+            updateSessionId();
+        }
+
+        // 스크롤 깊이 추적
+        function trackScrollDepth() {
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollPercent = Math.round((scrollTop / (documentHeight - windowHeight)) * 100);
+            
+            if (scrollPercent > currentScrollDepth) {
+                currentScrollDepth = scrollPercent;
+                updateScrollDepth();
+            }
+        }
+
+        // 액션 추적 함수들
+        function trackAction(action) {
+            console.log(`🎯 액션 추적: ${action}`);
+            if (window.UserAnalytics) {
+                // UserAnalytics 이벤트 발생 (필요시)
+            }
+        }
+
+        function trackNavClick(navItem) {
+            console.log(`🧭 네비게이션 클릭: ${navItem}`);
+            trackAction(`네비게이션-${navItem}`);
+        }
+
+        function downloadCoupon() {
+            console.log('🎫 쿠폰 다운로드!');
+            trackAction('쿠폰 다운로드');
+            alert('🎉 쿠폰이 다운로드되었습니다!\n마이페이지에서 확인하세요.');
+        }
+
+        // 탭 전환 기능
+        function showTab(tabName) {
+            // 모든 탭 내용 숨기기
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // 모든 탭 버튼 비활성화
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+            
+            // 선택된 탭 활성화
+            const selectedContent = document.getElementById(tabName);
+            if (selectedContent) selectedContent.classList.add('active');
+            
+            // 클릭된 버튼 활성화
+            event.target.classList.add('active');
+            
+            console.log(`📑 탭 전환: ${tabName}`);
+            trackAction(`탭전환-${tabName}`);
+        }
+
+        // 수동 데이터 전송
+        async function sendDataManually() {
+            if (!window.UserAnalytics) {
+                console.log('❌ UserAnalytics를 사용할 수 없습니다');
+                return;
+            }
+            
+            try {
+                await window.UserAnalytics.sendAnalyticsData();
+                console.log('📤 데이터 전송 완료');
+                alert('✅ 분석 데이터가 전송되었습니다!');
+            } catch (error) {
+                console.error('❌ 데이터 전송 실패:', error);
+                alert('❌ 데이터 전송에 실패했습니다: ' + error.message);
+            }
+        }
+
+        // 분석 데이터 표시
+        function showAnalyticsData() {
+            if (!window.UserAnalytics) {
+                alert('❌ UserAnalytics를 사용할 수 없습니다');
+                return;
+            }
+            
+            const data = {
+                sessionId: window.UserAnalytics.sessionId,
+                clickCount: clickCount,
+                scrollDepth: currentScrollDepth,
+                activeAreas: Array.from(activeAreas),
+                pageUrl: window.location.href,
+                userAgent: navigator.userAgent,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('📊 현재 분석 데이터:', data);
+            
+            const dataString = JSON.stringify(data, null, 2);
+            const popup = window.open('', '_blank', 'width=600,height=400');
+            popup.document.write(`
+                <html>
+                    <head><title>분석 데이터</title></head>
+                    <body style="font-family: monospace; padding: 20px;">
+                        <h2>📊 실시간 분석 데이터</h2>
+                        <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto;">
+${dataString}
+                        </pre>
+                        <button onclick="window.close()">닫기</button>
+                    </body>
+                </html>
+            `);
+        }
+
+        // 주기적 상태 업데이트 (5초마다)
+        setInterval(updateStatus, 5000);
+
+        // 영역 추적 디버깅
+        function debugAreaTracking() {
+            const areas = document.querySelectorAll('.area[data-area-id]');
+            console.log('=== 영역 추적 디버깅 ===');
+            console.log(`총 ${areas.length}개 영역 발견:`);
+            
+            areas.forEach((area, index) => {
+                const areaId = area.getAttribute('data-area-id');
+                const areaName = area.getAttribute('data-area-name');
+                console.log(`${index + 1}. ID: ${areaId}, 이름: ${areaName}`);
+            });
+            
+            if (window.UserAnalytics) {
+                console.log('UserAnalytics 인스턴스:', window.UserAnalytics);
+                console.log('현재 분석 데이터:', window.UserAnalytics.analyticsData);
+            } else {
+                console.log('❌ UserAnalytics 인스턴스를 찾을 수 없습니다');
+            }
+        }
+
+        // 페이지 로드 후 디버깅 정보 출력
+        setTimeout(() => {
+            debugAreaTracking();
+        }, 2000);
+
+        // 수동 테스트 함수
+        function manualTest() {
+            console.log('=== 수동 테스트 시작 ===');
+            
+            // 각 영역에 강제로 클릭 이벤트 발생
+            const areas = document.querySelectorAll('.area[data-area-id]');
+            areas.forEach((area, index) => {
+                setTimeout(() => {
+                    const areaId = area.getAttribute('data-area-id');
+                    const areaName = area.getAttribute('data-area-name');
+                    console.log(`테스트 클릭: ${areaName} (${areaId})`);
+                    
+                    // 클릭 이벤트 생성
+                    const clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    });
+                    area.dispatchEvent(clickEvent);
+                }, index * 500);
+            });
+
+            // 5초 후 데이터 전송 시도
+            setTimeout(() => {
+                console.log('수동 데이터 전송 시도...');
+                sendDataManually();
+            }, areas.length * 500 + 1000);
+        }
+
+        // 전역 함수로 노출
+        window.debugAreaTracking = debugAreaTracking;
+        window.manualTest = manualTest;
+    </script>
+</body>
+</html> 
