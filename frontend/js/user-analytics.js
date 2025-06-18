@@ -615,6 +615,12 @@ class UserAnalytics {
                 return value;
             };
 
+            // 숫자 필드 검증 및 기본값 설정
+            const ensureNumber = (value, defaultValue = 0) => {
+                const num = Number(value);
+                return isNaN(num) ? defaultValue : num;
+            };
+
             const payload = {
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: this.analyticsData.pageUrl,
@@ -622,33 +628,55 @@ class UserAnalytics {
                 userAgent: this.analyticsData.userAgent,
                 startTime: toISOString(this.analyticsData.startTime),
                 areaEngagements: this.analyticsData.areaEngagements.map(area => ({
-                    ...area,
+                    areaId: area.areaId,
+                    areaName: area.areaName,
+                    areaType: area.areaType || 'default',
+                    timeSpent: ensureNumber(area.timeSpent),
+                    interactions: ensureNumber(area.interactions),
                     firstEngagement: toISOString(area.firstEngagement),
-                    lastEngagement: toISOString(area.lastEngagement)
+                    lastEngagement: toISOString(area.lastEngagement),
+                    visibility: {
+                        visibleTime: ensureNumber(area.visibility?.visibleTime),
+                        viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
+                    }
                 })),
                 scrollMetrics: {
-                    ...this.analyticsData.scrollMetrics,
-                    scrollDepthBreakpoints: this.analyticsData.scrollMetrics.scrollDepthBreakpoints || {
-                        25: null,
-                        50: null,
-                        75: null,
-                        100: null
+                    deepestScroll: Math.min(100, Math.max(0, ensureNumber(this.analyticsData.scrollMetrics.deepestScroll))),
+                    scrollDepthBreakpoints: {
+                        25: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[25]),
+                        50: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[50]),
+                        75: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[75]),
+                        100: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints?.[100])
                     },
-                    scrollPattern: this.analyticsData.scrollMetrics.scrollPattern.map(pattern => ({
-                        ...pattern,
-                        timestamp: toISOString(pattern.timestamp)
+                    scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
+                        position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
+                        timestamp: toISOString(pattern.timestamp),
+                        direction: pattern.direction || 'down',
+                        speed: ensureNumber(pattern.speed)
                     }))
                 },
-                interactionMap: this.analyticsData.interactionMap.map(interaction => ({
-                    ...interaction,
-                    timestamp: toISOString(interaction.timestamp)
+                interactionMap: (this.analyticsData.interactionMap || []).map(interaction => ({
+                    x: ensureNumber(interaction.x),
+                    y: ensureNumber(interaction.y),
+                    type: interaction.type || 'click',
+                    targetElement: interaction.targetElement || 'unknown',
+                    timestamp: toISOString(interaction.timestamp),
+                    areaId: interaction.areaId || null
                 })),
-                formAnalytics: this.analyticsData.formAnalytics || [],
-                performance: this.analyticsData.performance || {
-                    loadTime: 0,
-                    domContentLoaded: 0,
-                    firstPaint: 0,
-                    firstContentfulPaint: 0
+                formAnalytics: (this.analyticsData.formAnalytics || []).map(form => ({
+                    formId: form.formId,
+                    fieldName: form.fieldName,
+                    interactionType: form.interactionType,
+                    timeSpent: ensureNumber(form.timeSpent),
+                    errorCount: ensureNumber(form.errorCount),
+                    completed: Boolean(form.completed)
+                })),
+                performance: {
+                    loadTime: ensureNumber(this.analyticsData.performance?.loadTime),
+                    domContentLoaded: ensureNumber(this.analyticsData.performance?.domContentLoaded),
+                    firstPaint: ensureNumber(this.analyticsData.performance?.firstPaint),
+                    firstContentfulPaint: ensureNumber(this.analyticsData.performance?.firstContentfulPaint),
+                    navigationtype: ensureNumber(this.analyticsData.performance?.navigationtype)
                 }
             };
 
@@ -660,14 +688,12 @@ class UserAnalytics {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
-                keepalive: isBeforeUnload // 페이지 언로드 시에도 전송 완료 보장
+                keepalive: isBeforeUnload
             });
 
             if (response.ok) {
                 const result = await response.json();
                 this.log('Analytics data sent successfully:', result);
-                
-                // 전송 성공 후 일부 데이터 초기화 (누적 방지)
                 this.resetTransientData();
             } else {
                 const errorText = await response.text();
@@ -675,6 +701,7 @@ class UserAnalytics {
                 try {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.error || errorData.message || response.statusText;
+                    this.log('Server validation error:', errorData);
                 } catch {
                     errorMessage = errorText || response.statusText;
                 }
@@ -683,7 +710,9 @@ class UserAnalytics {
 
         } catch (error) {
             this.log('Error sending analytics data:', error);
-            // 재시도 로직은 여기에 구현 가능
+            if (error.message.includes('400')) {
+                this.log('Last sent payload:', this.lastSentPayload);
+            }
         }
     }
 
