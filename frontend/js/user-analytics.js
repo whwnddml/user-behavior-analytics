@@ -610,7 +610,7 @@ class UserAnalytics {
 
             // 날짜/시간 데이터를 ISO 문자열로 변환하는 헬퍼 함수
             const toISOString = (value) => {
-                if (!value) return '';  // null 대신 빈 문자열 반환
+                if (!value) return new Date().toISOString();  // 빈 값은 현재 시간으로
                 if (value instanceof Date) return value.toISOString();
                 if (typeof value === 'number') return new Date(value).toISOString();
                 return value;
@@ -620,6 +620,17 @@ class UserAnalytics {
             const ensureNumber = (value, defaultValue = 0) => {
                 const num = Number(value);
                 return isNaN(num) ? defaultValue : num;
+            };
+
+            // 스크롤 브레이크포인트 값 변환
+            const toScrollBreakpoint = (value) => {
+                if (!value) return 0;  // null이나 undefined는 0으로
+                if (typeof value === 'number') return value;
+                if (typeof value === 'string') {
+                    const num = Number(value);
+                    return isNaN(num) ? 0 : num;
+                }
+                return 0;
             };
 
             // 데이터 구조 검증
@@ -649,14 +660,14 @@ class UserAnalytics {
                 performance: this.analyticsData.performance
             });
 
-            const now = new Date().toISOString();  // 기본값으로 사용할 현재 시간
+            const now = new Date().toISOString();
 
             payload = {
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: this.analyticsData.pageUrl,
                 pageTitle: this.analyticsData.pageTitle || '',
                 userAgent: this.analyticsData.userAgent,
-                startTime: toISOString(this.analyticsData.startTime) || now,
+                startTime: toISOString(this.analyticsData.startTime),
                 areaEngagements: (this.analyticsData.areaEngagements || []).map(area => {
                     const engagement = {
                         areaId: area.areaId,
@@ -664,8 +675,8 @@ class UserAnalytics {
                         areaType: area.areaType || 'default',
                         timeSpent: ensureNumber(area.timeSpent),
                         interactions: ensureNumber(area.interactions),
-                        firstEngagement: toISOString(area.firstEngagement) || now,  // 빈 값 대신 현재 시간 사용
-                        lastEngagement: toISOString(area.lastEngagement) || now,    // 빈 값 대신 현재 시간 사용
+                        firstEngagement: toISOString(area.firstEngagement),
+                        lastEngagement: toISOString(area.lastEngagement),
                         visibility: {
                             visibleTime: ensureNumber(area.visibility?.visibleTime),
                             viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
@@ -677,15 +688,15 @@ class UserAnalytics {
                 scrollMetrics: {
                     deepestScroll: Math.min(100, Math.max(0, ensureNumber(this.analyticsData.scrollMetrics?.deepestScroll))),
                     scrollDepthBreakpoints: {
-                        25: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[25]) || '0',  // null 대신 '0' 사용
-                        50: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[50]) || '0',
-                        75: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[75]) || '0',
-                        100: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[100]) || '0'
+                        25: toScrollBreakpoint(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[25]),
+                        50: toScrollBreakpoint(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[50]),
+                        75: toScrollBreakpoint(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[75]),
+                        100: toScrollBreakpoint(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[100])
                     },
                     scrollPattern: (this.analyticsData.scrollMetrics?.scrollPattern || []).map(pattern => {
                         const p = {
                             position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
-                            timestamp: toISOString(pattern.timestamp) || now,  // 빈 값 대신 현재 시간 사용
+                            timestamp: toISOString(pattern.timestamp),
                             direction: pattern.direction || 'down',
                             speed: ensureNumber(pattern.speed)
                         };
@@ -699,7 +710,7 @@ class UserAnalytics {
                         y: ensureNumber(interaction.y),
                         type: interaction.type || 'click',
                         targetElement: interaction.targetElement || 'unknown',
-                        timestamp: toISOString(interaction.timestamp) || now,  // 빈 값 대신 현재 시간 사용
+                        timestamp: toISOString(interaction.timestamp),
                         areaId: interaction.areaId || null
                     };
                     validateData(i, 'interactionMap');
