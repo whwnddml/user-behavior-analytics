@@ -6,29 +6,29 @@ import { ApiResponse } from '../types';
 export const analyticsDataSchema = Joi.object({
   sessionId: Joi.string().required(),
   pageUrl: Joi.string().required(),
-  pageTitle: Joi.string().optional(),
+  pageTitle: Joi.string().allow('').optional(),
   userAgent: Joi.string().required(),
-  startTime: Joi.string().optional(),
+  startTime: Joi.string().isoDate().required(),
   
   // 성능 메트릭
   performance: Joi.object({
-    loadTime: Joi.number().min(0).optional(),
-    domContentLoaded: Joi.number().min(0).optional(),
-    firstPaint: Joi.number().min(0).optional(),
-    firstContentfulPaint: Joi.number().min(0).optional(),
-    navigationtype: Joi.number().optional()
-  }).optional(),
+    loadTime: Joi.number().min(0).default(0),
+    domContentLoaded: Joi.number().min(0).default(0),
+    firstPaint: Joi.number().min(0).default(0),
+    firstContentfulPaint: Joi.number().min(0).default(0),
+    navigationtype: Joi.number().default(0)
+  }).default(),
 
   // 영역 데이터
   areaEngagements: Joi.array().items(
     Joi.object({
       areaId: Joi.string().required(),
       areaName: Joi.string().required(),
-      areaType: Joi.string().optional(),
+      areaType: Joi.string().default('default'),
       timeSpent: Joi.number().min(0).required(),
       interactions: Joi.number().min(0).required(),
-      firstEngagement: Joi.alternatives().try(Joi.date(), Joi.string()).optional(),
-      lastEngagement: Joi.alternatives().try(Joi.date(), Joi.string()).optional(),
+      firstEngagement: Joi.string().isoDate().required(),
+      lastEngagement: Joi.string().isoDate().required(),
       visibility: Joi.object({
         visibleTime: Joi.number().min(0).required(),
         viewportPercent: Joi.number().min(0).max(100).required()
@@ -40,15 +40,15 @@ export const analyticsDataSchema = Joi.object({
   scrollMetrics: Joi.object({
     deepestScroll: Joi.number().min(0).max(100).required(),
     scrollDepthBreakpoints: Joi.object({
-      25: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional(),
-      50: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional(),
-      75: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional(),
-      100: Joi.alternatives().try(Joi.number().min(0), Joi.string()).optional()
+      25: Joi.number().min(0).default(0),
+      50: Joi.number().min(0).default(0),
+      75: Joi.number().min(0).default(0),
+      100: Joi.number().min(0).default(0)
     }).required(),
     scrollPattern: Joi.array().items(
       Joi.object({
         position: Joi.number().min(0).max(100).required(),
-        timestamp: Joi.alternatives().try(Joi.date(), Joi.string(), Joi.number()).required(),
+        timestamp: Joi.string().isoDate().required(),
         direction: Joi.string().valid('up', 'down').required(),
         speed: Joi.number().min(0).required()
       })
@@ -62,8 +62,8 @@ export const analyticsDataSchema = Joi.object({
       y: Joi.number().min(0).required(),
       type: Joi.string().valid('click', 'hover', 'touch').required(),
       targetElement: Joi.string().required(),
-      timestamp: Joi.alternatives().try(Joi.date(), Joi.string(), Joi.number()).required(),
-      areaId: Joi.string().allow(null).optional()
+      timestamp: Joi.string().isoDate().required(),
+      areaId: Joi.string().allow(null).default(null)
     })
   ).required(),
 
@@ -74,19 +74,20 @@ export const analyticsDataSchema = Joi.object({
       fieldName: Joi.string().required(),
       interactionType: Joi.string().required(),
       timeSpent: Joi.number().min(0).required(),
-      errorCount: Joi.number().min(0).required(),
+      errorCount: Joi.number().min(0).default(0),
       completed: Joi.boolean().required()
     })
-  ).required()
+  ).default([])
+}).options({
+  stripUnknown: true,
+  abortEarly: false,
+  presence: 'required'
 });
 
 // 검증 미들웨어 생성 함수
 export const validateBody = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const { error, value } = schema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true
-    });
+    const { error, value } = schema.validate(req.body);
 
     if (error) {
       const errorResponse: ApiResponse = {
