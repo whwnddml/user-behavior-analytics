@@ -603,13 +603,14 @@ class UserAnalytics {
      * 분석 데이터 전송
      */
     async sendAnalyticsData(isBeforeUnload = false) {
+        let payload;
         try {
             // 현재 진행 중인 영역 타이머 업데이트
             this.updateActiveAreaTimers();
 
             // 날짜/시간 데이터를 ISO 문자열로 변환하는 헬퍼 함수
             const toISOString = (value) => {
-                if (!value) return null;
+                if (!value) return '';  // null 대신 빈 문자열 반환
                 if (value instanceof Date) return value.toISOString();
                 if (typeof value === 'number') return new Date(value).toISOString();
                 return value;
@@ -623,7 +624,7 @@ class UserAnalytics {
 
             // 데이터 구조 검증
             const validateData = (data, path = '') => {
-                if (!data) {
+                if (data === undefined || data === null) {
                     this.log(`Warning: Missing data at ${path}`);
                     return false;
                 }
@@ -648,12 +649,14 @@ class UserAnalytics {
                 performance: this.analyticsData.performance
             });
 
-            const payload = {
+            const now = new Date().toISOString();  // 기본값으로 사용할 현재 시간
+
+            payload = {
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: this.analyticsData.pageUrl,
                 pageTitle: this.analyticsData.pageTitle || '',
                 userAgent: this.analyticsData.userAgent,
-                startTime: toISOString(this.analyticsData.startTime),
+                startTime: toISOString(this.analyticsData.startTime) || now,
                 areaEngagements: (this.analyticsData.areaEngagements || []).map(area => {
                     const engagement = {
                         areaId: area.areaId,
@@ -661,8 +664,8 @@ class UserAnalytics {
                         areaType: area.areaType || 'default',
                         timeSpent: ensureNumber(area.timeSpent),
                         interactions: ensureNumber(area.interactions),
-                        firstEngagement: toISOString(area.firstEngagement),
-                        lastEngagement: toISOString(area.lastEngagement),
+                        firstEngagement: toISOString(area.firstEngagement) || now,  // 빈 값 대신 현재 시간 사용
+                        lastEngagement: toISOString(area.lastEngagement) || now,    // 빈 값 대신 현재 시간 사용
                         visibility: {
                             visibleTime: ensureNumber(area.visibility?.visibleTime),
                             viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
@@ -674,15 +677,15 @@ class UserAnalytics {
                 scrollMetrics: {
                     deepestScroll: Math.min(100, Math.max(0, ensureNumber(this.analyticsData.scrollMetrics?.deepestScroll))),
                     scrollDepthBreakpoints: {
-                        25: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[25]),
-                        50: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[50]),
-                        75: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[75]),
-                        100: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[100])
+                        25: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[25]) || '0',  // null 대신 '0' 사용
+                        50: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[50]) || '0',
+                        75: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[75]) || '0',
+                        100: toISOString(this.analyticsData.scrollMetrics?.scrollDepthBreakpoints?.[100]) || '0'
                     },
                     scrollPattern: (this.analyticsData.scrollMetrics?.scrollPattern || []).map(pattern => {
                         const p = {
                             position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
-                            timestamp: toISOString(pattern.timestamp),
+                            timestamp: toISOString(pattern.timestamp) || now,  // 빈 값 대신 현재 시간 사용
                             direction: pattern.direction || 'down',
                             speed: ensureNumber(pattern.speed)
                         };
@@ -696,7 +699,7 @@ class UserAnalytics {
                         y: ensureNumber(interaction.y),
                         type: interaction.type || 'click',
                         targetElement: interaction.targetElement || 'unknown',
-                        timestamp: toISOString(interaction.timestamp),
+                        timestamp: toISOString(interaction.timestamp) || now,  // 빈 값 대신 현재 시간 사용
                         areaId: interaction.areaId || null
                     };
                     validateData(i, 'interactionMap');
@@ -759,7 +762,7 @@ class UserAnalytics {
 
         } catch (error) {
             this.log('Error sending analytics data:', error);
-            if (error.message.includes('400')) {
+            if (error.message.includes('400') && payload) {
                 this.log('Last sent payload:', payload);
             }
         }
