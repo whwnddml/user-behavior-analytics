@@ -13,14 +13,32 @@ const loadEnv = () => {
 
 loadEnv();
 
+// 환경 설정
+export const isProduction = process.env.NODE_ENV === 'production';
+export const isDevelopment = process.env.NODE_ENV === 'development';
+
+// 서버 설정
+export const PORT = process.env.PORT || 3000;
+export const HOST = process.env.HOST || '0.0.0.0';
+
+// 데이터베이스 설정
+export const DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost:5432/analytics';
+
+// 보안 설정
+export const RATE_LIMIT = {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15분
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 최대 요청 수
+};
+
+// CORS 설정
+export const CORS_ORIGINS = isProduction
+    ? ['https://whwnddml.github.io']
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 export const config = {
-  // 서버 설정
-  NODE_ENV: process.env['NODE_ENV'] || 'development',
-  PORT: parseInt(process.env['PORT'] || '3000', 10),
-  
   // 데이터베이스 설정
   database: {
-    url: process.env['DATABASE_URL'],
+    url: DATABASE_URL,
     host: process.env['DB_HOST'],
     port: parseInt(process.env['DB_PORT'] || '5432', 10),
     name: process.env['DB_NAME'],
@@ -41,24 +59,9 @@ export const config = {
     file: process.env['LOG_FILE'] || 'logs/app.log',
   },
   
-  // CORS 설정
-  cors: {
-    origin: process.env['CORS_ORIGIN']?.split(',') || ['http://localhost:3000'],
-  },
-  
-  // Rate Limiting 설정
-  rateLimit: {
-    windowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] || '900000', 10),
-    max: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '100', 10),
-  },
-  
   // 분석 설정
   analytics: {
     batchSize: parseInt(process.env['ANALYTICS_BATCH_SIZE'] || '100', 10),
     flushInterval: parseInt(process.env['ANALYTICS_FLUSH_INTERVAL'] || '10000', 10),
   },
-  
-  // 프로덕션 환경 체크
-  isProduction: process.env['NODE_ENV'] === 'production',
-  isDevelopment: process.env['NODE_ENV'] === 'development',
 }; 

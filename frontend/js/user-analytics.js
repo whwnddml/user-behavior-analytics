@@ -613,11 +613,12 @@ class UserAnalytics {
                 if (!value) return new Date().toISOString();
                 if (value instanceof Date) return value.toISOString();
                 if (typeof value === 'number') return new Date(value).toISOString();
-                return value;
+                return String(value);  // 문자열이 아닌 경우 문자열로 변환
             };
 
             // 숫자 필드 검증 및 기본값 설정
             const ensureNumber = (value, defaultValue = 0) => {
+                if (value === null || value === undefined) return defaultValue;
                 const num = Number(value);
                 return isNaN(num) ? defaultValue : Math.max(0, num);
             };
@@ -634,13 +635,13 @@ class UserAnalytics {
                 
                 // 영역 데이터
                 areaEngagements: (this.analyticsData.areaEngagements || []).map(area => ({
-                    areaId: area.areaId,
-                    areaName: area.areaName,
-                    areaType: area.areaType || 'default',
+                    areaId: String(area.areaId),
+                    areaName: String(area.areaName),
+                    areaType: String(area.areaType || 'default'),
                     timeSpent: ensureNumber(area.timeSpent),
                     interactions: ensureNumber(area.interactions),
-                    firstEngagement: toISOString(area.firstEngagement),
-                    lastEngagement: toISOString(area.lastEngagement),
+                    firstEngagement: toISOString(area.firstEngagement || Date.now()),
+                    lastEngagement: toISOString(area.lastEngagement || Date.now()),
                     visibility: {
                         visibleTime: ensureNumber(area.visibility?.visibleTime),
                         viewportPercent: Math.min(100, Math.max(0, ensureNumber(area.visibility?.viewportPercent)))
@@ -658,7 +659,7 @@ class UserAnalytics {
                     },
                     scrollPattern: (this.analyticsData.scrollMetrics?.scrollPattern || []).map(pattern => ({
                         position: Math.min(100, Math.max(0, ensureNumber(pattern.position))),
-                        timestamp: toISOString(pattern.timestamp),
+                        timestamp: toISOString(pattern.timestamp || Date.now()),
                         direction: pattern.direction || 'down',
                         speed: ensureNumber(pattern.speed)
                     }))
@@ -669,16 +670,16 @@ class UserAnalytics {
                     x: ensureNumber(interaction.x),
                     y: ensureNumber(interaction.y),
                     type: interaction.type || 'click',
-                    targetElement: interaction.targetElement || 'unknown',
-                    timestamp: toISOString(interaction.timestamp),
-                    areaId: interaction.areaId || null
+                    targetElement: String(interaction.targetElement || 'unknown'),
+                    timestamp: toISOString(interaction.timestamp || Date.now()),
+                    areaId: interaction.areaId ? String(interaction.areaId) : null
                 })),
 
                 // 폼 분석 데이터
                 formAnalytics: (this.analyticsData.formAnalytics || []).map(form => ({
-                    formId: form.formId,
-                    fieldName: form.fieldName,
-                    interactionType: form.interactionType,
+                    formId: String(form.formId),
+                    fieldName: String(form.fieldName),
+                    interactionType: String(form.interactionType),
                     timeSpent: ensureNumber(form.timeSpent),
                     errorCount: ensureNumber(form.errorCount),
                     completed: Boolean(form.completed)

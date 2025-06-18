@@ -7,6 +7,8 @@ import { testConnection } from '../config/database';
 import { initializeDatabase } from '../utils/initDB';
 import logger from '../config/logger';
 import analyticsRoutes from '../routes/analytics';
+import { errorHandler } from '../middlewares/error';
+import { isProduction } from '../config/environment';
 
 const app = express();
 const PORT = process.env['PORT'] || 3000;
@@ -15,26 +17,31 @@ const PORT = process.env['PORT'] || 3000;
 app.use(helmet()); // 보안 헤더
 app.use(compression()); // 응답 압축
 
+// Render는 프록시를 사용하므로, X-Forwarded-* 헤더를 신뢰하도록 설정
+app.set('trust proxy', 1);
+
 // CORS 설정
 const corsOptions = {
-  origin: '*', // 개발 환경에서는 모든 origin 허용
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  credentials: true,
-  maxAge: 86400, // Preflight 결과를 24시간 캐시
+  origin: isProduction
+    ? ['https://whwnddml.github.io']
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
 };
 app.use(cors(corsOptions));
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] || '900000'), // 15분
-  max: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '100'), // 최대 요청 수
+  windowMs: 15 * 60 * 1000, // 15분
+  max: isProduction ? 100 : 1000, // 프로덕션에서는 IP당 100개, 개발환경에서는 1000개
   message: {
-    error: 'Too many requests from this IP, please try again later.',
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
   },
+  standardHeaders: true,
+  legacyHeaders: false
 });
-app.use(limiter);
+app.use('/api/', limiter);
 
 // JSON 파싱
 app.use(express.json({ limit: '10mb' }));
@@ -53,6 +60,9 @@ app.use((req, _res, next) => {
 
 // 라우트 등록
 app.use('/api/analytics', analyticsRoutes);
+
+// 에러 핸들러
+app.use(errorHandler);
 
 // 기본 라우트
 app.get('/', (_req, res) => {
@@ -95,22 +105,6 @@ app.use('*', (req, res) => {
     success: false,
     message: 'Route not found',
     path: req.originalUrl,
-  });
-});
-
-// 에러 핸들러
-app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Unhandled error:', {
-    error: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-  });
-
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    error: process.env['NODE_ENV'] === 'development' ? error.message : 'Something went wrong',
   });
 });
 
