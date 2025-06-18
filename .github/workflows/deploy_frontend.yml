@@ -1,15 +1,12 @@
-name: Deploy to GitHub Pages
+name: Deploy Frontend to GitHub Pages
 
 on:
   push:
     branches:
       - main
     paths:
-      - '**.html'
-      - 'js/**'
-      - 'css/**'
-      - 'docs/**'
-      - '.github/workflows/deploy.yml'
+      - 'frontend/**'
+      - '.github/workflows/deploy_frontend.yml'
 
 jobs:
   deploy:
@@ -26,5 +23,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
-          exclude_assets: 'backend/**' 
+          publish_dir: ./frontend
+          cname: analytics.brandiup.info  # 필요한 경우 사용자 정의 도메인 설정 
