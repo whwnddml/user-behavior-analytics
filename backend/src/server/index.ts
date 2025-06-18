@@ -18,7 +18,7 @@ app.use(helmet()); // 보안 헤더
 app.use(compression()); // 응답 압축
 
 // Render는 프록시를 사용하므로, X-Forwarded-* 헤더를 신뢰하도록 설정
-app.set('trust proxy', 1);
+app.set('trust proxy', 'uniquelocal');
 
 // CORS 설정
 const corsOptions = {
@@ -39,7 +39,15 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // IP 주소 결정을 위한 설정 추가
+  keyGenerator: (req) => {
+    const ip = req.ip;
+    if (!ip) {
+      throw new Error('IP address not found');
+    }
+    return ip;
+  }
 });
 app.use('/api/', limiter);
 
