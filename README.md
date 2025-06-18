@@ -288,3 +288,14 @@ MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
 
 **🎉 이제 완전한 사용자 행동 분석 시스템을 사용할 준비가 되었습니다!**
 
+## 로컬에서 html 실행
+python3 -m http.server 8080
+
+
+
+postgres://brandiup:[PASSWORD]@[HOST]:[PORT]/uba
+postgres://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a:5432/uba_zfqs
+
+external-db-url : 
+postgresql://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a.oregon-postgres.render.com/uba_zfqs
+internal-db-url : postgresql://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a/uba_zfqs
