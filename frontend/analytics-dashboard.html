@@ -386,6 +386,13 @@
     </div>
 
     <script>
+        // 환경 설정
+        const hostname = window.location.hostname;
+        const isProd = hostname.includes('github.io');
+        const baseUrl = isProd 
+            ? 'https://user-behavior-analytics.onrender.com'
+            : 'http://localhost:3000';
+
         // 전역 변수
         let charts = {};
         let currentDateFilter = { from: null, to: null };
@@ -774,7 +781,6 @@
 
         // API URL 빌드 (날짜 필터 포함)
         function buildApiUrl(endpoint) {
-            const baseUrl = 'http://localhost:3000';
             const url = new URL(endpoint, baseUrl);
             
             if (currentDateFilter.from) {
@@ -810,7 +816,7 @@
         // 세션 상세 정보 표시
         async function showSessionDetail(sessionId) {
             try {
-                const response = await fetch(`http://localhost:3000/api/analytics/dashboard/sessions/${sessionId}`);
+                const response = await fetch(`${baseUrl}/api/analytics/dashboard/sessions/${sessionId}`);
                 const data = await response.json();
                 
                 if (data.success) {
