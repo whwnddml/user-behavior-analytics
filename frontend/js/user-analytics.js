@@ -612,9 +612,23 @@ class UserAnalytics {
                 pageUrl: this.analyticsData.pageUrl,
                 pageTitle: this.analyticsData.pageTitle,
                 userAgent: this.analyticsData.userAgent,
-                areaEngagements: this.analyticsData.areaEngagements,
-                scrollMetrics: this.analyticsData.scrollMetrics,
-                interactionMap: this.analyticsData.interactionMap,
+                startTime: this.analyticsData.startTime.toISOString(),
+                areaEngagements: this.analyticsData.areaEngagements.map(area => ({
+                    ...area,
+                    firstEngagement: area.firstEngagement?.toISOString(),
+                    lastEngagement: area.lastEngagement?.toISOString()
+                })),
+                scrollMetrics: {
+                    ...this.analyticsData.scrollMetrics,
+                    scrollPattern: this.analyticsData.scrollMetrics.scrollPattern.map(pattern => ({
+                        ...pattern,
+                        timestamp: typeof pattern.timestamp === 'number' ? new Date(pattern.timestamp).toISOString() : pattern.timestamp
+                    }))
+                },
+                interactionMap: this.analyticsData.interactionMap.map(interaction => ({
+                    ...interaction,
+                    timestamp: typeof interaction.timestamp === 'number' ? new Date(interaction.timestamp).toISOString() : interaction.timestamp
+                })),
                 formAnalytics: this.analyticsData.formAnalytics,
                 performance: this.analyticsData.performance
             };
@@ -637,7 +651,8 @@ class UserAnalytics {
                 // 전송 성공 후 일부 데이터 초기화 (누적 방지)
                 this.resetTransientData();
             } else {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const errorData = await response.json();
+                throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
             }
 
         } catch (error) {
