@@ -273,7 +273,7 @@ export class AnalyticsModel {
     const values: any[] = [];
     let paramIndex = 1;
 
-    const dateFilter = [];
+    const dateFilter: string[] = [];
     if (dateFrom) {
       dateFilter.push(`pv.start_time >= $${paramIndex}`);
       values.push(dateFrom);
