@@ -677,10 +677,10 @@ class UserAnalytics {
                 scrollMetrics: {
                     deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
                     scrollDepthBreakpoints: {
-                        25: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || Date.now()),
-                        50: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || Date.now()),
-                        75: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || Date.now()),
-                        100: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || Date.now())
+                        25: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || Date.now()),
+                        50: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || Date.now()),
+                        75: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || Date.now()),
+                        100: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || Date.now())
                     },
                     scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
                         position: ensureNumber(pattern.position),
@@ -742,9 +742,10 @@ class UserAnalytics {
 
         } catch (error) {
             this.log('Error sending analytics data:', error);
-            if (error.message.includes('400') && payload) {
-                this.log('Last sent payload:', payload);
+            if (error.message.includes('400')) {
+                this.log('Last sent payload:', this.lastPayload);
             }
+            throw error;
         }
     }
 
