@@ -143,15 +143,24 @@ class UserAnalytics {
         const timing = window.performance.timing;
         const navigation = window.performance.navigation;
 
+        // 초기 성능 데이터 설정
+        this.analyticsData.performance = {
+            loadTime: 0,
+            domContentLoaded: 0,
+            firstPaint: 0,
+            firstContentfulPaint: 0,
+            navigationtype: navigation.type || 0
+        };
+
         // 페이지 로드 완료 후 메트릭 수집
         window.addEventListener('load', () => {
             setTimeout(() => {
                 this.analyticsData.performance = {
                     loadTime: timing.loadEventEnd - timing.navigationStart,
                     domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart,
-                    firstPaint: this.getFirstPaint(),
-                    firstContentfulPaint: this.getFirstContentfulPaint(),
-                    navigationtype: navigation.type
+                    firstPaint: this.getFirstPaint() || 0,
+                    firstContentfulPaint: this.getFirstContentfulPaint() || 0,
+                    navigationtype: navigation.type || 0
                 };
                 this.log('Performance metrics collected:', this.analyticsData.performance);
             }, 100);
@@ -616,7 +625,9 @@ class UserAnalytics {
         try {
             // 시간 값을 ISO 문자열로 변환하는 헬퍼 함수
             const toISOString = (value) => {
+                if (!value) return new Date().toISOString();
                 if (value instanceof Date) return value.toISOString();
+                if (typeof value === 'number') return new Date(value).toISOString();
                 return value;
             };
 
@@ -629,6 +640,11 @@ class UserAnalytics {
 
             // 현재 상태 업데이트
             this.updateActiveAreaTimers();
+
+            // 기본 배열 데이터 초기화
+            if (!this.analyticsData.interactionMap) this.analyticsData.interactionMap = [];
+            if (!this.analyticsData.formAnalytics) this.analyticsData.formAnalytics = [];
+            if (!this.analyticsData.scrollMetrics.scrollPattern) this.analyticsData.scrollMetrics.scrollPattern = [];
 
             // 전송할 데이터 준비
             const payload = {
@@ -645,10 +661,10 @@ class UserAnalytics {
                     firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint),
                     navigationtype: ensureNumber(this.analyticsData.performance.navigationtype, 0)
                 },
-                areaEngagements: this.analyticsData.areaEngagements.map(area => ({
+                areaEngagements: (this.analyticsData.areaEngagements || []).map(area => ({
                     areaId: area.areaId,
                     areaName: area.areaName,
-                    areaType: area.areaType,
+                    areaType: area.areaType || 'default',
                     timeSpent: ensureNumber(area.timeSpent),
                     interactions: ensureNumber(area.interactions),
                     firstEngagement: toISOString(area.firstEngagement || this.analyticsData.startTime),
@@ -661,19 +677,19 @@ class UserAnalytics {
                 scrollMetrics: {
                     deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
                     scrollDepthBreakpoints: {
-                        25: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || 0),
-                        50: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || 0),
-                        75: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || 0),
-                        100: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || 0)
+                        25: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || Date.now()),
+                        50: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || Date.now()),
+                        75: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || Date.now()),
+                        100: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || Date.now())
                     },
-                    scrollPattern: this.analyticsData.scrollMetrics.scrollPattern.map(pattern => ({
+                    scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
                         position: ensureNumber(pattern.position),
                         direction: pattern.direction,
                         speed: ensureNumber(pattern.speed),
                         timestamp: toISOString(pattern.timestamp)
                     }))
                 },
-                interactionMap: this.analyticsData.interactionMap.map(interaction => ({
+                interactionMap: (this.analyticsData.interactionMap || []).map(interaction => ({
                     x: ensureNumber(interaction.x),
                     y: ensureNumber(interaction.y),
                     type: interaction.type,
@@ -681,9 +697,9 @@ class UserAnalytics {
                     timestamp: toISOString(interaction.timestamp),
                     areaId: interaction.areaId || null
                 })),
-                formAnalytics: this.analyticsData.formAnalytics.map(form => ({
-                    formId: form.formId,
-                    fieldName: form.fieldName,
+                formAnalytics: (this.analyticsData.formAnalytics || []).map(form => ({
+                    formId: form.formId || 'unknown',
+                    fieldName: form.fieldName || 'unknown',
                     interactionType: form.interactionType || 'input',
                     timeSpent: ensureNumber(form.timeSpent),
                     errorCount: ensureNumber(form.errorCount),
