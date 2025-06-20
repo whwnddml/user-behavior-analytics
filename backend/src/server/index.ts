@@ -8,7 +8,7 @@ import { initializeDatabase } from '../utils/initDB';
 import logger from '../config/logger';
 import analyticsRoutes from '../routes/analytics';
 import { errorHandler } from '../middlewares/error';
-import { isProduction } from '../config/environment';
+import { isProduction, ALLOWED_ORIGINS } from '../config/environment';
 
 const app = express();
 const PORT = process.env['PORT'] || 3000;
@@ -22,11 +22,17 @@ app.set('trust proxy', 'uniquelocal');
 
 // CORS 설정
 const corsOptions = {
-  origin: isProduction
-    ? ['https://whwnddml.github.io']
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500'],
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // origin이 undefined인 경우는 같은 도메인에서의 요청
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy violation'));
+    }
+  },
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type'],
+  credentials: true
 };
 app.use(cors(corsOptions));
 
