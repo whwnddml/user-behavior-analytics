@@ -284,126 +284,61 @@
         <p>실시간 사용자 행동 데이터 분석 및 시각화</p>
     </div>
 
-    <div class="container">
-        <!-- 컨트롤 패널 -->
-        <div class="controls">
-            <div class="control-group">
-                <label for="page-filter">분석할 페이지</label>
-                <select id="page-filter" onchange="updateDashboard()">
-                    <option value="index.html">메인 페이지 (index.html)</option>
-                    <option value="test-frontend.html">쇼핑몰 테스트 (test-frontend.html)</option>
-                    <option value="debug-test.html">디버그 테스트 (debug-test.html)</option>
+    <div class="container mt-4">
+        <h1 class="mb-4">사용자 행동 분석 대시보드</h1>
+        
+        <!-- 필터 섹션 -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label for="date-from" class="form-label">시작일</label>
+                <input type="date" id="date-from" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label for="date-to" class="form-label">종료일</label>
+                <input type="date" id="date-to" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label for="page-filter" class="form-label">페이지</label>
+                <select id="page-filter" class="form-control">
+                    <option value="">전체</option>
+                    <option value="index.html">메인 페이지</option>
+                    <option value="products.html">상품 목록</option>
+                    <option value="cart.html">장바구니</option>
                 </select>
             </div>
-            <div class="control-group">
-                <label for="date-from">시작일</label>
-                <input type="date" id="date-from">
-            </div>
-            <div class="control-group">
-                <label for="date-to">종료일</label>
-                <input type="date" id="date-to">
-            </div>
-            <button class="btn" onclick="applyDateFilter()">필터 적용</button>
-            <button class="btn refresh" onclick="refreshDashboard()">🔄 새로고침</button>
         </div>
 
-        <!-- 상태 메시지 -->
-        <div id="status-message"></div>
+        <!-- 에러 메시지 영역 -->
+        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
 
-        <!-- 전체 통계 카드 -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="value" id="total-sessions">-</div>
-                <div class="label">총 세션</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="total-pageviews">-</div>
-                <div class="label">총 페이지뷰</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="avg-session-duration">-</div>
-                <div class="label">평균 세션 시간 (초)</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="total-interactions">-</div>
-                <div class="label">총 상호작용</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="avg-load-time">-</div>
-                <div class="label">평균 로딩 시간 (ms)</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="avg-scroll-depth">-</div>
-                <div class="label">평균 스크롤 깊이 (%)</div>
-            </div>
-        </div>
-
-        <!-- 차트 그리드 -->
-        <div class="dashboard-grid">
-            <!-- 시간대별 활동 차트 -->
-            <div class="chart-container">
-                <h3>📈 시간대별 세션 활동</h3>
-                <div class="chart-canvas">
-                    <canvas id="hourlyChart"></canvas>
+        <!-- 차트 영역 -->
+        <div class="row">
+            <!-- 영역별 체류시간 차트 -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <canvas id="areaChart" width="400" height="200"></canvas>
+                    </div>
                 </div>
             </div>
 
             <!-- 디바이스별 통계 차트 -->
-            <div class="chart-container">
-                <h3>📱 디바이스 및 브라우저 분포</h3>
-                <div class="chart-canvas">
-                    <canvas id="deviceChart"></canvas>
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <canvas id="deviceChart" width="400" height="400"></canvas>
+                    </div>
                 </div>
             </div>
 
-            <!-- 영역별 상호작용 차트 -->
-            <div class="chart-container">
-                <h3>🎯 영역별 평균 체류시간</h3>
-                <div class="chart-canvas">
-                    <canvas id="areaChart"></canvas>
+            <!-- 시간대별 활동 차트 -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <canvas id="timeChart" width="400" height="400"></canvas>
+                    </div>
                 </div>
             </div>
-
-            <!-- 페이지 성능 차트 -->
-            <div class="chart-container">
-                <h3>⚡ 페이지 성능 분석</h3>
-                <div class="chart-canvas">
-                    <canvas id="performanceChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- 최근 세션 테이블 -->
-        <div class="sessions-table">
-            <div class="table-header">🔍 최근 세션 목록</div>
-            <div class="table-content">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>세션 ID</th>
-                            <th>시작 시간</th>
-                            <th>종료 시간</th>
-                            <th>디바이스</th>
-                            <th>브라우저</th>
-                            <th>페이지뷰</th>
-                            <th>상호작용</th>
-                            <th>스크롤 깊이</th>
-                            <th>평균 로딩시간</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sessions-tbody">
-                        <tr>
-                            <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
-                                데이터를 불러오는 중... ⏳
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="last-updated" id="last-updated">
-            마지막 업데이트: -
         </div>
     </div>
 
