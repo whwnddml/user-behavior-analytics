@@ -414,7 +414,6 @@
             : ''; // 개발 환경 (상대 경로 사용)
 
         // 전역 변수
-        let charts = {};
         let currentDateFilter = { from: null, to: null };
 
         // 차트 색상 팔레트
@@ -427,6 +426,11 @@
             info: '#17a2b8',
             gradient: ['#667eea', '#764ba2', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#f8f9fa']
         };
+
+        // 전역 차트 객체
+        let areaChart = null;
+        let deviceChart = null;
+        let timeChart = null;
 
         // 초기 설정
         document.addEventListener('DOMContentLoaded', () => {
@@ -905,55 +909,218 @@
 
         // 차트 초기화
         function clearCharts() {
-            // 각 차트 컨테이너를 찾아서 "데이터가 없습니다" 메시지 표시
-            const chartContainers = document.querySelectorAll('.chart-container');
-            chartContainers.forEach(container => {
-                container.innerHTML = '<p class="no-data">선택한 기간에 데이터가 없습니다.</p>';
+            // 기존 차트들 제거
+            if (areaChart) {
+                areaChart.destroy();
+                areaChart = null;
+            }
+            if (deviceChart) {
+                deviceChart.destroy();
+                deviceChart = null;
+            }
+            if (timeChart) {
+                timeChart.destroy();
+                timeChart = null;
+            }
+
+            // 각 차트 컨테이너에 "데이터 없음" 메시지 표시
+            const chartContainers = ['areaChart', 'deviceChart', 'timeChart'];
+            chartContainers.forEach(containerId => {
+                const container = document.getElementById(containerId);
+                const ctx = container.getContext('2d');
+                ctx.clearRect(0, 0, container.width, container.height);
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#666';
+                ctx.fillText('선택한 기간에 데이터가 없습니다.', container.width/2, container.height/2);
             });
         }
 
         // 차트 업데이트
         function updateCharts(data) {
-            // 영역별 체류시간 차트
-            const areaLabels = data.map(d => d.area_name);
-            const areaTimeSpent = data.map(d => d.avg_time_spent / 1000); // ms를 초로 변환
-            const visitorCounts = data.map(d => d.visitor_count);
-
-            updateAreaChart(areaLabels, areaTimeSpent, visitorCounts);
+            updateAreaChart(data);
+            updateDeviceChart(data);
+            updateTimeChart(data);
         }
 
-        // 영역 차트 업데이트
-        function updateAreaChart(labels, timeSpent, visitors) {
+        // 영역별 체류시간 차트 업데이트
+        function updateAreaChart(data) {
             const ctx = document.getElementById('areaChart').getContext('2d');
             
-            if (window.areaChart) {
-                window.areaChart.destroy();
+            // 기존 차트 제거
+            if (areaChart) {
+                areaChart.destroy();
             }
 
-            window.areaChart = new Chart(ctx, {
+            const areas = data.map(item => item.area_name);
+            const timeSpent = data.map(item => item.avg_time_spent);
+            const visitors = data.map(item => item.visitor_count);
+
+            areaChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: areas,
+                    datasets: [
+                        {
+                            label: '평균 체류 시간 (초)',
+                            data: timeSpent,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '방문자 수',
+                            data: visitors,
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '평균 체류 시간 (초)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '방문자 수'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '영역별 체류시간 및 방문자 수'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 디바이스별 통계 차트 업데이트
+        function updateDeviceChart(data) {
+            const ctx = document.getElementById('deviceChart').getContext('2d');
+            
+            // 기존 차트 제거
+            if (deviceChart) {
+                deviceChart.destroy();
+            }
+
+            // 디바이스별 데이터 집계
+            const deviceStats = {};
+            data.forEach(item => {
+                if (!deviceStats[item.device_type]) {
+                    deviceStats[item.device_type] = 0;
+                }
+                deviceStats[item.device_type] += item.visitor_count;
+            });
+
+            deviceChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(deviceStats),
                     datasets: [{
-                        label: '평균 체류시간 (초)',
-                        data: timeSpent,
-                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
-                        borderColor: 'rgba(102, 126, 234, 1)',
-                        borderWidth: 1
-                    }, {
-                        label: '방문자 수',
-                        data: visitors,
-                        backgroundColor: 'rgba(118, 75, 162, 0.6)',
-                        borderColor: 'rgba(118, 75, 162, 1)',
+                        data: Object.values(deviceStats),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)'
+                        ],
                         borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '디바이스별 방문자 분포'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 시간대별 활동 차트 업데이트
+        function updateTimeChart(data) {
+            const ctx = document.getElementById('timeChart').getContext('2d');
+            
+            // 기존 차트 제거
+            if (timeChart) {
+                timeChart.destroy();
+            }
+
+            // 시간대별 데이터 집계
+            const timeStats = {};
+            data.forEach(item => {
+                const hour = new Date(item.first_engagement).getHours();
+                if (!timeStats[hour]) {
+                    timeStats[hour] = 0;
+                }
+                timeStats[hour] += item.visitor_count;
+            });
+
+            // 0-23시까지 데이터 채우기
+            const hours = Array.from({length: 24}, (_, i) => i);
+            const visitors = hours.map(hour => timeStats[hour] || 0);
+
+            timeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hours.map(h => `${h}시`),
+                    datasets: [{
+                        label: '방문자 수',
+                        data: visitors,
+                        fill: true,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '방문자 수'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '시간'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '시간대별 방문자 수'
                         }
                     }
                 }
