@@ -36,7 +36,12 @@ class UserAnalytics {
             areaEngagements: [],
             scrollMetrics: {
                 deepestScroll: 0,
-                scrollDepthBreakpoints: {},
+                scrollDepthBreakpoints: {
+                    25: 0,
+                    50: 0,
+                    75: 0,
+                    100: 0
+                },
                 scrollPattern: []
             },
             interactionMap: [],
@@ -302,7 +307,7 @@ class UserAnalytics {
         // 스크롤 깊이 이정표 기록
         [25, 50, 75, 100].forEach(depth => {
             if (scrollPercent >= depth && !this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth]) {
-                this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth] = new Date().getTime();
+                this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth] = Math.round(Date.now() / 1000);
             }
         });
 
@@ -677,10 +682,10 @@ class UserAnalytics {
                 scrollMetrics: {
                     deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
                     scrollDepthBreakpoints: {
-                        25: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || Date.now()),
-                        50: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || Date.now()),
-                        75: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || Date.now()),
-                        100: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || Date.now())
+                        25: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25]),
+                        50: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50]),
+                        75: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75]),
+                        100: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100])
                     },
                     scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
                         position: ensureNumber(pattern.position),
@@ -706,6 +711,9 @@ class UserAnalytics {
                     completed: Boolean(form.completed)
                 }))
             };
+
+            // 마지막 전송된 payload 저장
+            this.lastPayload = payload;
 
             this.log('Processed payload:', payload);
 
