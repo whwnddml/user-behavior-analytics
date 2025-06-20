@@ -254,19 +254,26 @@ router.post('/session/end', async (req: Request, res: Response) => {
 
 // === 대시보드 API ===
 
-// 대시보드 전체 통계
+// 대시보드 통계 API
 router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { dateFrom, dateTo, page } = req.query;
-    const stats = await AnalyticsModel.getDashboardStats(
-      dateFrom as string,
-      dateTo as string,
-      page as string
-    );
-    res.json(stats);
-  } catch (error) {
-    next(error);
-  }
+    try {
+        const { dateFrom, dateTo, page } = req.query;
+        const stats = await AnalyticsModel.getDashboardStats(
+            dateFrom as string,
+            dateTo as string,
+            page as string
+        );
+        
+        const response: ApiResponse = {
+            success: true,
+            message: 'Dashboard stats retrieved successfully',
+            data: stats
+        };
+        
+        res.json(response);
+    } catch (error) {
+        next(error);
+    }
 });
 
 // 세션 목록 조회

@@ -875,8 +875,10 @@
                 const response = await fetch(`/api/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
                 if (!response.ok) throw new Error('API 요청 실패');
                 
-                const data = await response.json();
-                updateCharts(data);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message);
+                
+                updateCharts(result.data);
             } catch (error) {
                 console.error('대시보드 업데이트 중 오류:', error);
                 alert('데이터를 불러오는 중 오류가 발생했습니다.');
