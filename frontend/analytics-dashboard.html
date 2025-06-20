@@ -408,12 +408,10 @@
     </div>
 
     <script>
-        // 환경 설정
-        const hostname = window.location.hostname;
-        const isProd = hostname.includes('github.io');
-        const baseUrl = isProd 
-            ? 'https://user-behavior-analytics.onrender.com'
-            : 'http://localhost:3000';
+        // API 기본 URL 설정
+        const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
+            ? 'https://user-behavior-analytics.onrender.com' // 프로덕션 환경
+            : ''; // 개발 환경 (상대 경로 사용)
 
         // 전역 변수
         let charts = {};
@@ -430,7 +428,7 @@
             gradient: ['#667eea', '#764ba2', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#f8f9fa']
         };
 
-        // 초기화
+        // 초기 설정
         document.addEventListener('DOMContentLoaded', () => {
             // 날짜 기본값 설정
             const today = new Date().toISOString().split('T')[0];
@@ -803,7 +801,7 @@
 
         // API URL 빌드 (날짜 필터 포함)
         function buildApiUrl(endpoint) {
-            const url = new URL(endpoint, baseUrl);
+            const url = new URL(endpoint, API_BASE_URL);
             
             if (currentDateFilter.from) {
                 url.searchParams.set('dateFrom', currentDateFilter.from);
@@ -838,7 +836,7 @@
         // 세션 상세 정보 표시
         async function showSessionDetail(sessionId) {
             try {
-                const response = await fetch(`${baseUrl}/api/analytics/dashboard/sessions/${sessionId}`);
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions/${sessionId}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -872,7 +870,7 @@
             const selectedPage = document.getElementById('page-filter').value;
 
             try {
-                const response = await fetch(`/api/analytics/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
                 if (!response.ok) throw new Error('API 요청 실패');
                 
                 const result = await response.json();

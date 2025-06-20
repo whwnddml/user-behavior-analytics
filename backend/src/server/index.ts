@@ -24,7 +24,7 @@ app.set('trust proxy', 'uniquelocal');
 const corsOptions = {
   origin: isProduction
     ? ['https://whwnddml.github.io']
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500'],
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 };
@@ -136,27 +136,4 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       logger.info(`🚀 Server is running on port ${PORT}`);
-      logger.info(`📊 Environment: ${process.env['NODE_ENV'] || 'development'}`);
-      logger.info(`🔗 API URL: http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    logger.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  process.exit(0);
-});
-
-// 시작
-startServer();
-
-export default app; 
+      logger.info(`
