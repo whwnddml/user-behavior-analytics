@@ -269,30 +269,48 @@ export class AnalyticsModel {
   // === 데이터 조회 메서드들 ===
 
   // 대시보드 전체 통계
-  static async getDashboardStats(dateFrom?: string, dateTo?: string): Promise<any> {
-    const dateCondition = dateFrom && dateTo 
-      ? `WHERE s.start_time >= $1 AND s.start_time <= $2`
-      : '';
-    const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
+  static async getDashboardStats(dateFrom?: string, dateTo?: string, page?: string): Promise<any> {
+    const values: any[] = [];
+    let paramIndex = 1;
 
-    const query = `
+    const dateFilter = [];
+    if (dateFrom) {
+      dateFilter.push(`pv.start_time >= $${paramIndex}`);
+      values.push(dateFrom);
+      paramIndex++;
+    }
+    if (dateTo) {
+      dateFilter.push(`pv.start_time <= $${paramIndex}`);
+      values.push(dateTo);
+      paramIndex++;
+    }
+
+    const pageFilter = page ? [`pv.page_url LIKE '%' || $${paramIndex} || '%'`] : [];
+    if (page) {
+      values.push(page);
+      paramIndex++;
+    }
+
+    const whereClause = [...dateFilter, ...pageFilter].length > 0
+      ? 'WHERE ' + [...dateFilter, ...pageFilter].join(' AND ')
+      : '';
+
+    // 영역별 체류시간 통계
+    const areaStatsQuery = `
       SELECT 
-        COUNT(DISTINCT s.session_id) as total_sessions,
-        COUNT(DISTINCT p.pageview_id) as total_pageviews,
-        COALESCE(AVG(p.load_time), 0) as avg_load_time,
-        COALESCE(AVG(sm.deepest_scroll), 0) as avg_scroll_depth,
-        COUNT(i.interaction_id) as total_interactions,
-        COUNT(DISTINCT s.device_type) as device_types,
-        COALESCE(AVG(EXTRACT(EPOCH FROM (s.end_time - s.start_time))), 0) as avg_session_duration
-      FROM sessions s
-      LEFT JOIN pageviews p ON s.session_id = p.session_id
-      LEFT JOIN scroll_metrics sm ON p.pageview_id = sm.pageview_id
-      LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
-      ${dateCondition}
+        ae.area_id,
+        ae.area_name,
+        AVG(ae.time_spent) as avg_time_spent,
+        COUNT(DISTINCT pv.session_id) as visitor_count
+      FROM area_engagements ae
+      JOIN pageviews pv ON ae.pageview_id = pv.pageview_id
+      ${whereClause}
+      GROUP BY ae.area_id, ae.area_name
+      ORDER BY avg_time_spent DESC
     `;
 
-    const result = await pool.query(query, params);
-    return result.rows[0];
+    const result = await pool.query(areaStatsQuery, values);
+    return result.rows;
   }
 
   // 세션 목록 조회

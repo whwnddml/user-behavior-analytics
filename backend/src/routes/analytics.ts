@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { AnalyticsModel } from '../models/analytics';
 import { 
   validateBody, 
@@ -255,33 +255,17 @@ router.post('/session/end', async (req: Request, res: Response) => {
 // === 대시보드 API ===
 
 // 대시보드 전체 통계
-router.get('/dashboard/stats', async (req: Request, res: Response) => {
+router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { dateFrom, dateTo } = req.query;
-    
+    const { dateFrom, dateTo, page } = req.query;
     const stats = await AnalyticsModel.getDashboardStats(
       dateFrom as string,
-      dateTo as string
+      dateTo as string,
+      page as string
     );
-
-    const response: ApiResponse = {
-      success: true,
-      message: 'Dashboard stats retrieved successfully',
-      data: stats
-    };
-
-    res.json(response);
-
+    res.json(stats);
   } catch (error) {
-    logger.error('Error retrieving dashboard stats:', error);
-    
-    const errorResponse: ApiResponse = {
-      success: false,
-      message: 'Failed to retrieve dashboard stats',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    next(error);
   }
 });
 

@@ -80,6 +80,20 @@
             border-color: #667eea;
         }
 
+        .control-group select {
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         .btn {
             background: #667eea;
             color: white;
@@ -274,12 +288,20 @@
         <!-- 컨트롤 패널 -->
         <div class="controls">
             <div class="control-group">
-                <label for="dateFrom">시작 날짜</label>
-                <input type="date" id="dateFrom">
+                <label for="page-filter">분석할 페이지</label>
+                <select id="page-filter" onchange="updateDashboard()">
+                    <option value="index.html">메인 페이지 (index.html)</option>
+                    <option value="test-frontend.html">쇼핑몰 테스트 (test-frontend.html)</option>
+                    <option value="debug-test.html">디버그 테스트 (debug-test.html)</option>
+                </select>
             </div>
             <div class="control-group">
-                <label for="dateTo">종료 날짜</label>
-                <input type="date" id="dateTo">
+                <label for="date-from">시작일</label>
+                <input type="date" id="date-from">
+            </div>
+            <div class="control-group">
+                <label for="date-to">종료일</label>
+                <input type="date" id="date-to">
             </div>
             <button class="btn" onclick="applyDateFilter()">필터 적용</button>
             <button class="btn refresh" onclick="refreshDashboard()">🔄 새로고침</button>
@@ -410,15 +432,15 @@
 
         // 초기화
         document.addEventListener('DOMContentLoaded', () => {
-            // 오늘 날짜로 초기값 설정
+            // 날짜 기본값 설정
             const today = new Date().toISOString().split('T')[0];
             const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             
-            document.getElementById('dateFrom').value = weekAgo;
-            document.getElementById('dateTo').value = today;
+            document.getElementById('date-from').value = weekAgo;
+            document.getElementById('date-to').value = today;
 
             // 대시보드 로드
-            refreshDashboard();
+            updateDashboard();
         });
 
         // 상태 메시지 표시
@@ -435,16 +457,16 @@
 
         // 날짜 필터 적용
         function applyDateFilter() {
-            const dateFrom = document.getElementById('dateFrom').value;
-            const dateTo = document.getElementById('dateTo').value;
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
             
             if (dateFrom && dateTo && dateFrom > dateTo) {
-                showMessage('시작 날짜는 종료 날짜보다 이전이어야 합니다.', 'error');
+                alert('시작일이 종료일보다 늦을 수 없습니다.');
                 return;
             }
             
             currentDateFilter = { from: dateFrom, to: dateTo };
-            refreshDashboard();
+            updateDashboard();
         }
 
         // 대시보드 새로고침
@@ -842,6 +864,72 @@
 
         // 자동 새로고침 (5분마다)
         setInterval(refreshDashboard, 5 * 60 * 1000);
+
+        // 대시보드 업데이트
+        async function updateDashboard() {
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+            const selectedPage = document.getElementById('page-filter').value;
+
+            try {
+                const response = await fetch(`/api/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
+                if (!response.ok) throw new Error('API 요청 실패');
+                
+                const data = await response.json();
+                updateCharts(data);
+            } catch (error) {
+                console.error('대시보드 업데이트 중 오류:', error);
+                alert('데이터를 불러오는 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 차트 업데이트
+        function updateCharts(data) {
+            // 영역별 체류시간 차트
+            const areaLabels = data.map(d => d.area_name);
+            const areaTimeSpent = data.map(d => d.avg_time_spent / 1000); // ms를 초로 변환
+            const visitorCounts = data.map(d => d.visitor_count);
+
+            updateAreaChart(areaLabels, areaTimeSpent, visitorCounts);
+        }
+
+        // 영역 차트 업데이트
+        function updateAreaChart(labels, timeSpent, visitors) {
+            const ctx = document.getElementById('areaChart').getContext('2d');
+            
+            if (window.areaChart) {
+                window.areaChart.destroy();
+            }
+
+            window.areaChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '평균 체류시간 (초)',
+                        data: timeSpent,
+                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: '방문자 수',
+                        data: visitors,
+                        backgroundColor: 'rgba(118, 75, 162, 0.6)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html> 
