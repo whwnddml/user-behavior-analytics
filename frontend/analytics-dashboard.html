@@ -872,7 +872,7 @@
             const selectedPage = document.getElementById('page-filter').value;
 
             try {
-                const response = await fetch(`/api/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
+                const response = await fetch(`/api/analytics/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
                 if (!response.ok) throw new Error('API 요청 실패');
                 
                 const result = await response.json();
