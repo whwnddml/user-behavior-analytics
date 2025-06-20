@@ -307,7 +307,8 @@ class UserAnalytics {
         // 스크롤 깊이 이정표 기록
         [25, 50, 75, 100].forEach(depth => {
             if (scrollPercent >= depth && !this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth]) {
-                this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth] = Math.round(Date.now() / 1000);
+                // 초 단위의 타임스탬프를 정수로 저장
+                this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth] = Math.floor(Date.now() / 1000);
             }
         });
 
@@ -682,10 +683,10 @@ class UserAnalytics {
                 scrollMetrics: {
                     deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
                     scrollDepthBreakpoints: {
-                        25: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25]),
-                        50: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50]),
-                        75: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75]),
-                        100: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100])
+                        25: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || 0),
+                        50: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || 0),
+                        75: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || 0),
+                        100: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || 0)
                     },
                     scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
                         position: ensureNumber(pattern.position),
@@ -711,6 +712,14 @@ class UserAnalytics {
                     completed: Boolean(form.completed)
                 }))
             };
+
+            // 디버깅을 위해 실제 전송되는 데이터의 타입을 로깅
+            this.log('ScrollDepthBreakpoints types:', {
+                25: typeof payload.scrollMetrics.scrollDepthBreakpoints[25],
+                50: typeof payload.scrollMetrics.scrollDepthBreakpoints[50],
+                75: typeof payload.scrollMetrics.scrollDepthBreakpoints[75],
+                100: typeof payload.scrollMetrics.scrollDepthBreakpoints[100]
+            });
 
             // 마지막 전송된 payload 저장
             this.lastPayload = payload;

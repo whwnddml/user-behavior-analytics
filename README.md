@@ -321,7 +321,7 @@ NODE_ENV=development
 
 ## 로컬에서 html 실행
 python3 -m http.server 8080
-
+http://localhost:8080/frontend
 
 
 postgres://brandiup:[PASSWORD]@[HOST]:[PORT]/uba
