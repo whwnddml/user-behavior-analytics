@@ -642,7 +642,8 @@ class UserAnalytics {
                     loadTime: ensureNumber(this.analyticsData.performance.loadTime),
                     domContentLoaded: ensureNumber(this.analyticsData.performance.domContentLoaded),
                     firstPaint: ensureNumber(this.analyticsData.performance.firstPaint),
-                    firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint)
+                    firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint),
+                    navigationtype: ensureNumber(this.analyticsData.performance.navigationtype, 0)
                 },
                 areaEngagements: this.analyticsData.areaEngagements.map(area => ({
                     areaId: area.areaId,
@@ -650,8 +651,8 @@ class UserAnalytics {
                     areaType: area.areaType,
                     timeSpent: ensureNumber(area.timeSpent),
                     interactions: ensureNumber(area.interactions),
-                    firstEngagement: toISOString(area.firstEngagement),
-                    lastEngagement: toISOString(area.lastEngagement),
+                    firstEngagement: toISOString(area.firstEngagement || this.analyticsData.startTime),
+                    lastEngagement: toISOString(area.lastEngagement || new Date()),
                     visibility: {
                         visibleTime: ensureNumber(area.visibility.visibleTime),
                         viewportPercent: ensureNumber(area.visibility.viewportPercent)
@@ -659,18 +660,35 @@ class UserAnalytics {
                 })),
                 scrollMetrics: {
                     deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
-                    scrollDepthBreakpoints: Object.entries(this.analyticsData.scrollMetrics.scrollDepthBreakpoints)
-                        .reduce((acc, [key, value]) => {
-                            acc[key] = toISOString(value);
-                            return acc;
-                        }, {}),
+                    scrollDepthBreakpoints: {
+                        25: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || 0),
+                        50: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || 0),
+                        75: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || 0),
+                        100: toISOString(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || 0)
+                    },
                     scrollPattern: this.analyticsData.scrollMetrics.scrollPattern.map(pattern => ({
                         position: ensureNumber(pattern.position),
                         direction: pattern.direction,
                         speed: ensureNumber(pattern.speed),
                         timestamp: toISOString(pattern.timestamp)
                     }))
-                }
+                },
+                interactionMap: this.analyticsData.interactionMap.map(interaction => ({
+                    x: ensureNumber(interaction.x),
+                    y: ensureNumber(interaction.y),
+                    type: interaction.type,
+                    targetElement: interaction.targetElement,
+                    timestamp: toISOString(interaction.timestamp),
+                    areaId: interaction.areaId || null
+                })),
+                formAnalytics: this.analyticsData.formAnalytics.map(form => ({
+                    formId: form.formId,
+                    fieldName: form.fieldName,
+                    interactionType: form.interactionType || 'input',
+                    timeSpent: ensureNumber(form.timeSpent),
+                    errorCount: ensureNumber(form.errorCount),
+                    completed: Boolean(form.completed)
+                }))
             };
 
             this.log('Processed payload:', payload);
