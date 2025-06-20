@@ -136,4 +136,12 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       logger.info(`🚀 Server is running on port ${PORT}`);
-      logger.info(`
+      logger.info(`📊 Environment: ${process.env['NODE_ENV'] || 'development'}`);
+    });
+  } catch (error) {
+    logger.error('Server startup failed:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
