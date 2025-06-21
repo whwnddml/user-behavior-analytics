@@ -89,8 +89,12 @@
                         <label for="page-filter" class="form-label">페이지</label>
                         <select id="page-filter" class="form-control">
                             <option value="">전체</option>
+                            <option value="analytics-dashboard.html">분석 대시보드</option>
+                            <option value="dashboard.html">상세 대시보드</option>
+                            <option value="simple-dashboard.html">간단한 대시보드</option>
                             <option value="index.html">메인 페이지</option>
                             <option value="example-page.html">예시 페이지</option>
+                            <option value="debug-test.html">디버그 테스트</option>
                             <option value="test-frontend.html">테스트 페이지</option>
                         </select>
                     </div>
@@ -399,6 +403,19 @@
                 if (!result.success) throw new Error(result.message);
 
                 const tbody = document.getElementById('sessions-table-body');
+                
+                // 데이터가 없거나 배열이 아닌 경우 처리
+                if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                표시할 세션 데이터가 없습니다.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
                 tbody.innerHTML = result.data.map(session => `
                     <tr>
                         <td>${session.sessionId.substring(0, 8)}...</td>
