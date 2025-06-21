@@ -3,72 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>간단한 대시보드</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>간단한 분석 대시보드</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        .container { max-width: 1200px; margin: 2rem auto; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-card .label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        #status-message {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
 </head>
 <body>
-    <nav class="nav-container">
-        <div class="nav-menu">
-            <a href="analytics-dashboard.html">사용자 행동 분석</a>
-            <a href="simple-dashboard.html" class="active">간단한 대시보드</a>
-            <a href="test-frontend.html">테스트 페이지</a>
+    <!-- 네비게이션 바 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">사용자 행동 분석</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">상세 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="simple-dashboard.html">간단한 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="test-frontend.html">테스트 페이지</a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
-    <main class="container">
-        <div class="logo-container">
-            <img src="images/analytics-icon.png" alt="분석 아이콘">
-            <h1>간단한 대시보드</h1>
-        </div>
+    <div class="container">
+        <h1>📊 사용자 행동 분석 대시보드</h1>
+        <p class="lead">수집된 데이터를 확인하고 분석할 수 있는 간단한 대시보드입니다.</p>
         
-        <p class="page-description">
-            수집된 데이터를 확인하고 분석할 수 있는 간단한 대시보드입니다.
-        </p>
-
-        <!-- 필터 섹션 -->
-        <div class="filters">
-            <div class="date-filters">
-                <input type="date" id="date-from" name="date-from">
-                <span>~</span>
-                <input type="date" id="date-to" name="date-to">
-            </div>
-            <button onclick="loadDashboardData()">필터 적용</button>
+        <div id="status-message">상태: 초기화 중...</div>
+        
+        <div class="actions">
+            <button class="btn" onclick="refreshData()">🔄 데이터 새로고침</button>
+            <button class="btn" onclick="testAllAPIs()">🧪 모든 API 테스트</button>
         </div>
 
-        <!-- 통계 카드 -->
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>총 세션</h3>
-                <p id="total-sessions">-</p>
+                <div class="value" id="total-sessions">-</div>
+                <div class="label">총 세션</div>
             </div>
             <div class="stat-card">
-                <h3>총 페이지뷰</h3>
-                <p id="total-pageviews">-</p>
+                <div class="value" id="total-pageviews">-</div>
+                <div class="label">총 페이지뷰</div>
             </div>
             <div class="stat-card">
-                <h3>총 상호작용</h3>
-                <p id="total-interactions">-</p>
+                <div class="value" id="total-interactions">-</div>
+                <div class="label">총 상호작용</div>
             </div>
             <div class="stat-card">
-                <h3>평균 세션 시간</h3>
-                <p id="avg-session-time">-</p>
+                <div class="value" id="avg-session-time">-</div>
+                <div class="label">평균 세션 시간 (초)</div>
             </div>
         </div>
 
-        <!-- 차트 영역 -->
-        <div class="charts-grid">
-            <div class="chart-container">
-                <h3>디바이스별 통계</h3>
-                <canvas id="deviceChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>시간대별 활동</h3>
-                <canvas id="timeChart"></canvas>
-            </div>
+        <div class="api-test">
+            <h3>API 응답 확인</h3>
+            <pre id="api-response" style="background: #f8f9fa; padding: 1rem; border-radius: 4px;"></pre>
         </div>
-    </main>
 
-    <script src="js/analytics.js"></script>
+        <div class="last-updated" id="last-updated">
+            마지막 업데이트: -
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 분석 스크립트 -->
+    <script>
+        // API 기본 URL 설정
+        const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
+            ? 'https://user-behavior-analytics.onrender.com'
+            : '';
+
+        // 상태 메시지 표시
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'error' : 'success';
+        }
+
+        // API 응답 표시
+        function showApiResponse(response) {
+            const pre = document.getElementById('api-response');
+            pre.textContent = JSON.stringify(response, null, 2);
+        }
+
+        // 데이터 새로고침
+        async function refreshData() {
+            try {
+                showStatus('데이터를 불러오는 중...');
+
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || '데이터 로드 실패');
+                }
+
+                // 통계 업데이트
+                document.getElementById('total-sessions').textContent = 
+                    data.data.summary.totalSessions.toLocaleString();
+                document.getElementById('total-pageviews').textContent = 
+                    data.data.summary.totalPageviews.toLocaleString();
+                document.getElementById('total-interactions').textContent = 
+                    data.data.summary.totalInteractions.toLocaleString();
+                document.getElementById('avg-session-time').textContent = 
+                    data.data.summary.avgSessionTime.value.toLocaleString();
+
+                // 마지막 업데이트 시간
+                document.getElementById('last-updated').textContent = 
+                    `마지막 업데이트: ${new Date().toLocaleString()}`;
+
+                showStatus('데이터가 성공적으로 로드되었습니다.');
+                showApiResponse(data);
+
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                showStatus(`오류 발생: ${error.message}`, true);
+            }
+        }
+
+        // 모든 API 테스트
+        async function testAllAPIs() {
+            try {
+                showStatus('API 테스트 중...');
+                
+                const endpoints = [
+                    '/api/analytics/dashboard/stats',
+                    '/api/analytics/dashboard/sessions',
+                    '/api/analytics/device-stats',
+                    '/api/analytics/hourly-stats'
+                ];
+
+                const results = await Promise.all(
+                    endpoints.map(endpoint => 
+                        fetch(`${API_BASE_URL}${endpoint}`)
+                            .then(res => res.json())
+                            .then(data => ({
+                                endpoint,
+                                success: data.success,
+                                message: data.message
+                            }))
+                            .catch(error => ({
+                                endpoint,
+                                success: false,
+                                error: error.message
+                            }))
+                    )
+                );
+
+                showApiResponse(results);
+                showStatus('API 테스트가 완료되었습니다.');
+
+            } catch (error) {
+                console.error('API 테스트 실패:', error);
+                showStatus(`API 테스트 실패: ${error.message}`, true);
+            }
+        }
+
+        // 초기 데이터 로드
+        document.addEventListener('DOMContentLoaded', refreshData);
+    </script>
 </body>
 </html> 
