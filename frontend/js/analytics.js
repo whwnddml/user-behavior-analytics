@@ -236,10 +236,49 @@ window.addEventListener('beforeunload', () => {
 // 주기적으로 데이터 전송 (5분마다)
 setInterval(sendAnalytics, 5 * 60 * 1000);
 
-// API 기본 URL 설정
-const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
-    ? 'https://user-behavior-analytics.onrender.com'
-    : '';
+// API 설정
+const API_CONFIG = {
+    baseUrl: process.env.NODE_ENV === 'production' 
+        ? 'https://api.your-domain.com/api/analytics'
+        : 'http://localhost:3000/api/analytics',
+    endpoints: {
+        stats: '/dashboard/stats',
+        sessions: '/dashboard/sessions',
+        areaStats: '/area-stats',
+        hourlyStats: '/hourly-stats',
+        deviceStats: '/device-stats',
+        performanceStats: '/performance-stats'
+    }
+};
+
+// 유틸리티 함수
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function formatNumber(number, decimals = 0) {
+    return Number(number).toFixed(decimals);
+}
+
+// API 호출 함수
+async function fetchAPI(endpoint, params = {}) {
+    try {
+        const queryString = new URLSearchParams(params).toString();
+        const url = `${API_CONFIG.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || '데이터를 불러오는데 실패했습니다.');
+        }
+        
+        return data.data;
+    } catch (error) {
+        showError(`API 호출 실패: ${error.message}`);
+        throw error;
+    }
+}
 
 // 차트 객체 저장소
 let charts = {
@@ -248,13 +287,21 @@ let charts = {
     timeChart: null
 };
 
-// 에러 표시
+// 에러 표시 함수 개선
 function showError(message) {
-    const errorDiv = document.getElementById('error-message');
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
+    const errorContainer = document.getElementById('error-container');
+    if (!errorContainer) {
+        const container = document.createElement('div');
+        container.id = 'error-container';
+        container.className = 'error-message';
+        document.body.appendChild(container);
+    }
+    
+    errorContainer.textContent = message;
+    errorContainer.style.display = 'block';
+    
     setTimeout(() => {
-        errorDiv.style.display = 'none';
+        errorContainer.style.display = 'none';
     }, 5000);
 }
 
@@ -361,29 +408,38 @@ function initializeCharts() {
     }
 }
 
-// 데이터 로드
+// 대시보드 데이터 로드
 async function loadDashboardData() {
     try {
-        const dateFrom = document.getElementById('date-from').value;
-        const dateTo = document.getElementById('date-to').value;
-        const page = document.getElementById('page-filter').value;
-
-        // API 호출
-        const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats?${new URLSearchParams({
-            dateFrom,
-            dateTo,
-            page
-        })}`);
-
-        if (!response.ok) throw new Error('API 요청 실패');
+        const today = new Date();
+        const lastMonth = new Date(today.setMonth(today.getMonth() - 1));
         
-        const result = await response.json();
-        if (!result.success) throw new Error(result.message);
-
-        updateCharts(result.data);
+        const params = {
+            dateFrom: formatDate(lastMonth),
+            dateTo: formatDate(new Date())
+        };
+        
+        const [
+            stats,
+            areaStats,
+            hourlyStats,
+            deviceStats
+        ] = await Promise.all([
+            fetchAPI(API_CONFIG.endpoints.stats, params),
+            fetchAPI(API_CONFIG.endpoints.areaStats, params),
+            fetchAPI(API_CONFIG.endpoints.hourlyStats, params),
+            fetchAPI(API_CONFIG.endpoints.deviceStats, params)
+        ]);
+        
+        updateDashboard({
+            stats,
+            areaStats,
+            hourlyStats,
+            deviceStats
+        });
     } catch (error) {
-        console.error('데이터 로드 실패:', error);
-        showError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
+        console.error('대시보드 데이터 로드 실패:', error);
+        showError('대시보드 데이터를 불러오는데 실패했습니다.');
     }
 }
 
@@ -435,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 세션 목록 조회
 async function loadSessionsTable() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`);
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.sessions}?limit=10`);
         if (!response.ok) throw new Error('API 요청 실패');
         
         const result = await response.json();
