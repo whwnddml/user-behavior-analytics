@@ -342,87 +342,60 @@
             });
         }
 
-        // 대시보드 데이터 로드
-        async function loadDashboardData() {
-            try {
-                // 필터 값 가져오기
-                const dateFrom = document.getElementById('date-from').value;
-                const dateTo = document.getElementById('date-to').value;
-                const page = document.getElementById('page-filter').value;
-
-                // 통계 데이터 로드
-                const [dashboardStats, deviceStats] = await Promise.all([
-                    fetchAPI('/dashboard/stats', { dateFrom, dateTo, page }),
-                    fetchAPI('/device-stats', { dateFrom, dateTo })
-                ]);
-
-                // 요약 통계 업데이트
-                document.getElementById('total-sessions').textContent = 
-                    formatNumber(dashboardStats.data.summary.totalSessions);
-                document.getElementById('total-pageviews').textContent = 
-                    formatNumber(dashboardStats.data.summary.totalPageviews);
-                document.getElementById('total-interactions').textContent = 
-                    formatNumber(dashboardStats.data.summary.totalInteractions);
-                document.getElementById('avg-session-time').textContent = 
-                    formatNumber(dashboardStats.data.summary.avgSessionTime.value, 1) + '분';
-
-                // 차트 업데이트
-                updateCharts(dashboardStats.data.stats, deviceStats.data);
-
-                // 세션 테이블 업데이트
-                await loadSessionsTable();
-
-            } catch (error) {
-                showError('데이터 로드 중 오류가 발생했습니다: ' + error.message);
-            }
-        }
-
         // 차트 업데이트
         function updateCharts(stats, deviceStats) {
+            if (!stats || !deviceStats) {
+                showError('데이터가 없습니다.');
+                return;
+            }
+
             // 영역별 체류시간 차트 업데이트
-            charts.areaChart.data.labels = stats.map(stat => stat.area_name);
-            charts.areaChart.data.datasets[0].data = stats.map(stat => stat.avg_time_spent);
-            charts.areaChart.update();
+            if (stats.areaStats && stats.areaStats.length > 0) {
+                charts.areaChart.data.labels = stats.areaStats.map(stat => stat.area_name);
+                charts.areaChart.data.datasets[0].data = stats.areaStats.map(stat => stat.avg_time_spent);
+                charts.areaChart.update();
+            }
 
             // 디바이스별 통계 차트 업데이트
-            const deviceData = {};
-            deviceStats.forEach(stat => {
-                if (!deviceData[stat.device_type]) {
-                    deviceData[stat.device_type] = 0;
-                }
-                deviceData[stat.device_type] += stat.session_count;
-            });
+            if (deviceStats && deviceStats.length > 0) {
+                const deviceData = {};
+                deviceStats.forEach(stat => {
+                    const deviceType = stat.device_type || 'unknown';
+                    deviceData[deviceType] = (deviceData[deviceType] || 0) + stat.session_count;
+                });
 
-            charts.deviceChart.data.labels = Object.keys(deviceData);
-            charts.deviceChart.data.datasets[0].data = Object.values(deviceData);
-            charts.deviceChart.update();
+                charts.deviceChart.data.labels = Object.keys(deviceData);
+                charts.deviceChart.data.datasets[0].data = Object.values(deviceData);
+                charts.deviceChart.update();
 
-            // 브라우저별 통계 차트 업데이트
-            const browserData = {};
-            deviceStats.forEach(stat => {
-                if (!browserData[stat.browser_name]) {
-                    browserData[stat.browser_name] = 0;
-                }
-                browserData[stat.browser_name] += stat.session_count;
-            });
+                // 브라우저별 통계 차트 업데이트
+                const browserData = {};
+                deviceStats.forEach(stat => {
+                    const browserName = stat.browser_name || 'unknown';
+                    browserData[browserName] = (browserData[browserName] || 0) + stat.session_count;
+                });
 
-            charts.browserChart.data.labels = Object.keys(browserData);
-            charts.browserChart.data.datasets[0].data = Object.values(browserData);
-            charts.browserChart.update();
+                charts.browserChart.data.labels = Object.keys(browserData);
+                charts.browserChart.data.datasets[0].data = Object.values(browserData);
+                charts.browserChart.update();
+            }
 
             // 시간대별 활동 차트 업데이트
-            const hours = Array.from({length: 24}, (_, i) => i);
-            const hourlyData = new Array(24).fill(0);
-            
-            stats.forEach(stat => {
-                if (stat.hour >= 0 && stat.hour < 24) {
-                    hourlyData[stat.hour] = stat.session_count;
-                }
-            });
+            if (stats.hourlyStats && stats.hourlyStats.length > 0) {
+                const hours = Array.from({length: 24}, (_, i) => i);
+                const hourlyData = new Array(24).fill(0);
+                
+                stats.hourlyStats.forEach(stat => {
+                    const hour = parseInt(stat.hour);
+                    if (hour >= 0 && hour < 24) {
+                        hourlyData[hour] = stat.session_count;
+                    }
+                });
 
-            charts.timeChart.data.labels = hours.map(h => `${h}시`);
-            charts.timeChart.data.datasets[0].data = hourlyData;
-            charts.timeChart.update();
+                charts.timeChart.data.labels = hours.map(h => `${h}시`);
+                charts.timeChart.data.datasets[0].data = hourlyData;
+                charts.timeChart.update();
+            }
         }
 
         // 세션 테이블 업데이트
@@ -463,6 +436,51 @@
                         <td colspan="6" class="text-center">세션 데이터 로드 중 오류가 발생했습니다.</td>
                     </tr>
                 `;
+            }
+        }
+
+        // 대시보드 데이터 로드
+        async function loadDashboardData() {
+            try {
+                // 필터 값 가져오기
+                const dateFrom = document.getElementById('date-from').value;
+                const dateTo = document.getElementById('date-to').value;
+                const page = document.getElementById('page-filter').value;
+
+                // 모든 필요한 통계 데이터 로드
+                const [dashboardStats, deviceStats, hourlyStats] = await Promise.all([
+                    fetchAPI('/dashboard/stats', { dateFrom, dateTo, page }),
+                    fetchAPI('/device-stats', { dateFrom, dateTo }),
+                    fetchAPI('/hourly-stats', { dateFrom, dateTo })
+                ]);
+
+                if (!dashboardStats.success || !deviceStats.success || !hourlyStats.success) {
+                    throw new Error('일부 데이터를 가져오는데 실패했습니다.');
+                }
+
+                // 요약 통계 업데이트
+                const summary = dashboardStats.data.summary || {};
+                document.getElementById('total-sessions').textContent = 
+                    formatNumber(summary.totalSessions || 0);
+                document.getElementById('total-pageviews').textContent = 
+                    formatNumber(summary.totalPageviews || 0);
+                document.getElementById('total-interactions').textContent = 
+                    formatNumber(summary.totalInteractions || 0);
+                document.getElementById('avg-session-time').textContent = 
+                    formatNumber(summary.avgSessionTime?.value || 0, 1) + '분';
+
+                // 차트 업데이트
+                updateCharts({
+                    areaStats: dashboardStats.data.stats,
+                    hourlyStats: hourlyStats.data
+                }, deviceStats.data);
+
+                // 세션 테이블 업데이트
+                await loadSessionsTable();
+
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                showError('데이터 로드 중 오류가 발생했습니다: ' + error.message);
             }
         }
 
