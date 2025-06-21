@@ -260,9 +260,9 @@ router.get('/dashboard/stats', async (req: Request, res: Response) => {
     const { dateFrom, dateTo, page } = req.query;
     
     const stats = await AnalyticsModel.getDashboardStats(
-      dateFrom as string,
-      dateTo as string,
-      page as string
+      dateFrom ? String(dateFrom) : undefined,
+      dateTo ? String(dateTo) : undefined,
+      page ? String(page) : undefined
     );
 
     const response: ApiResponse = {
@@ -282,209 +282,163 @@ router.get('/dashboard/stats', async (req: Request, res: Response) => {
   }
 });
 
-// 세션 목록 조회
+// 세션 목록 API
 router.get('/dashboard/sessions', async (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query['limit'] as string) || 50;
-    const offset = parseInt(req.query['offset'] as string) || 0;
-    
+    const limit = parseInt(String(req.query.limit)) || 50;
+    const offset = parseInt(String(req.query.offset)) || 0;
+
     const sessions = await AnalyticsModel.getSessions(limit, offset);
 
     const response: ApiResponse = {
       success: true,
       message: 'Sessions retrieved successfully',
-      data: {
-        sessions,
-        pagination: {
-          limit,
-          offset,
-          total: sessions.length
-        }
-      }
+      data: sessions
     };
 
     res.json(response);
-
   } catch (error) {
-    logger.error('Error retrieving sessions:', error);
-    
-    const errorResponse: ApiResponse = {
+    logger.error('Error fetching sessions:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to retrieve sessions',
+      message: 'Failed to fetch sessions',
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    });
   }
 });
 
-// 특정 세션 상세 정보
-router.get('/dashboard/sessions/:sessionId', async (req: Request, res: Response) => {
+// 세션 상세 정보 API
+router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
   try {
-    const sessionId = req.params['sessionId'];
-    
-    if (!sessionId) {
-      const errorResponse: ApiResponse = {
-        success: false,
-        message: 'Session ID is required'
-      };
-      res.status(400).json(errorResponse);
-      return;
-    }
-    
+    const { sessionId } = req.params;
     const sessionDetail = await AnalyticsModel.getSessionDetail(sessionId);
 
-    if (!sessionDetail.session) {
-      const errorResponse: ApiResponse = {
+    if (!sessionDetail) {
+      return res.status(404).json({
         success: false,
-        message: 'Session not found'
-      };
-      res.status(404).json(errorResponse);
-      return;
+        message: 'Session not found',
+        error: `Session with ID ${sessionId} does not exist`
+      });
     }
 
     const response: ApiResponse = {
       success: true,
-      message: 'Session detail retrieved successfully',
+      message: 'Session details retrieved successfully',
       data: sessionDetail
     };
 
     res.json(response);
-
   } catch (error) {
-    logger.error('Error retrieving session detail:', error);
-    
-    const errorResponse: ApiResponse = {
+    logger.error('Error fetching session details:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to retrieve session detail',
+      message: 'Failed to fetch session details',
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    });
   }
 });
 
-// 영역별 통계
-router.get('/dashboard/areas', async (req: Request, res: Response) => {
+// 영역별 통계 API
+router.get('/area-stats', async (req: Request, res: Response) => {
   try {
     const { dateFrom, dateTo } = req.query;
-    
-    const areaStats = await AnalyticsModel.getAreaStats(
-      dateFrom as string,
-      dateTo as string
+    const stats = await AnalyticsModel.getAreaStats(
+      dateFrom ? String(dateFrom) : undefined,
+      dateTo ? String(dateTo) : undefined
     );
 
     const response: ApiResponse = {
       success: true,
-      message: 'Area stats retrieved successfully',
-      data: areaStats
+      message: 'Area statistics retrieved successfully',
+      data: stats
     };
 
     res.json(response);
-
   } catch (error) {
-    logger.error('Error retrieving area stats:', error);
-    
-    const errorResponse: ApiResponse = {
+    logger.error('Error fetching area stats:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to retrieve area stats',
+      message: 'Failed to fetch area statistics',
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    });
   }
 });
 
-// 시간대별 통계
-router.get('/dashboard/hourly', async (req: Request, res: Response) => {
+// 시간대별 통계 API
+router.get('/hourly-stats', async (req: Request, res: Response) => {
   try {
     const { dateFrom, dateTo } = req.query;
-    
-    const hourlyStats = await AnalyticsModel.getHourlyStats(
-      dateFrom as string,
-      dateTo as string
+    const stats = await AnalyticsModel.getHourlyStats(
+      dateFrom ? String(dateFrom) : undefined,
+      dateTo ? String(dateTo) : undefined
     );
 
     const response: ApiResponse = {
       success: true,
-      message: 'Hourly stats retrieved successfully',
-      data: hourlyStats
+      message: 'Hourly statistics retrieved successfully',
+      data: stats
     };
 
     res.json(response);
-
   } catch (error) {
-    logger.error('Error retrieving hourly stats:', error);
-    
-    const errorResponse: ApiResponse = {
+    logger.error('Error fetching hourly stats:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to retrieve hourly stats',
+      message: 'Failed to fetch hourly statistics',
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    });
   }
 });
 
-// 디바이스별 통계
-router.get('/dashboard/devices', async (req: Request, res: Response) => {
+// 디바이스별 통계 API
+router.get('/device-stats', async (req: Request, res: Response) => {
   try {
     const { dateFrom, dateTo } = req.query;
-    
-    const deviceStats = await AnalyticsModel.getDeviceStats(
-      dateFrom as string,
-      dateTo as string
+    const stats = await AnalyticsModel.getDeviceStats(
+      dateFrom ? String(dateFrom) : undefined,
+      dateTo ? String(dateTo) : undefined
     );
 
     const response: ApiResponse = {
       success: true,
-      message: 'Device stats retrieved successfully',
-      data: deviceStats
+      message: 'Device statistics retrieved successfully',
+      data: stats
     };
 
     res.json(response);
-
   } catch (error) {
-    logger.error('Error retrieving device stats:', error);
-    
-    const errorResponse: ApiResponse = {
+    logger.error('Error fetching device stats:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to retrieve device stats',
+      message: 'Failed to fetch device statistics',
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    });
   }
 });
 
-// 페이지 성능 통계
-router.get('/dashboard/performance', async (req: Request, res: Response) => {
+// 성능 통계 API
+router.get('/performance-stats', async (req: Request, res: Response) => {
   try {
     const { dateFrom, dateTo } = req.query;
-    
-    const performanceStats = await AnalyticsModel.getPerformanceStats(
-      dateFrom as string,
-      dateTo as string
+    const stats = await AnalyticsModel.getPerformanceStats(
+      dateFrom ? String(dateFrom) : undefined,
+      dateTo ? String(dateTo) : undefined
     );
 
     const response: ApiResponse = {
       success: true,
-      message: 'Performance stats retrieved successfully',
-      data: performanceStats
+      message: 'Performance statistics retrieved successfully',
+      data: stats
     };
 
     res.json(response);
-
   } catch (error) {
-    logger.error('Error retrieving performance stats:', error);
-    
-    const errorResponse: ApiResponse = {
+    logger.error('Error fetching performance stats:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to retrieve performance stats',
+      message: 'Failed to fetch performance statistics',
       error: error instanceof Error ? error.message : 'Unknown error'
-    };
-    
-    res.status(500).json(errorResponse);
+    });
   }
 });
 

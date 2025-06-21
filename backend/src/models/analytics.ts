@@ -269,7 +269,7 @@ export class AnalyticsModel {
   // === 데이터 조회 메서드들 ===
 
   // 대시보드 전체 통계
-  static async getDashboardStats(dateFrom?: string, dateTo?: string, page?: string): Promise<any> {
+  static async getDashboardStats(dateFrom?: string | undefined, dateTo?: string | undefined, page?: string | undefined): Promise<any> {
     const values: any[] = [];
     let paramIndex = 1;
 
