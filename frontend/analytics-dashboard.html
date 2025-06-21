@@ -481,12 +481,12 @@
 
                 tbody.innerHTML = result.data.map(session => `
                     <tr>
-                        <td>${session.sessionId.substring(0, 8)}...</td>
-                        <td>${new Date(session.startTime).toLocaleString()}</td>
-                        <td>${session.deviceType || '-'}</td>
-                        <td>${session.browserName || '-'}</td>
+                        <td>${session.session_id ? session.session_id.substring(0, 8) : '-'}...</td>
+                        <td>${session.start_time ? new Date(session.start_time).toLocaleString() : '-'}</td>
+                        <td>${session.device_type || '-'}</td>
+                        <td>${session.browser_name || '-'}</td>
                         <td>${session.pageviews || 0}</td>
-                        <td>${session.totalInteractions || 0}</td>
+                        <td>${session.total_interactions || 0}</td>
                     </tr>
                 `).join('');
             } catch (error) {
