@@ -358,22 +358,66 @@
             }
         }
 
-        function displayNoDataMessage() {
-            const messageContainer = document.getElementById('dashboard-content');
-            messageContainer.innerHTML = `
-                <div class="alert alert-info" role="alert">
-                    선택한 기간에 대한 데이터가 없습니다.
-                </div>
-            `;
+        function displayErrorMessage(message) {
+            const errorContainer = document.getElementById('error-message');
+            if (errorContainer) {
+                errorContainer.style.display = 'block';
+                errorContainer.textContent = message;
+            }
         }
 
-        function displayErrorMessage(message) {
-            const messageContainer = document.getElementById('dashboard-content');
-            messageContainer.innerHTML = `
-                <div class="alert alert-danger" role="alert">
-                    ${message}
-                </div>
-            `;
+        function displayNoDataMessage() {
+            const errorContainer = document.getElementById('error-message');
+            if (errorContainer) {
+                errorContainer.style.display = 'block';
+                errorContainer.textContent = '선택한 기간에 대한 데이터가 없습니다.';
+            }
+
+            // 통계 초기화
+            document.getElementById('total-sessions').textContent = '0';
+            document.getElementById('total-pageviews').textContent = '0';
+            document.getElementById('total-interactions').textContent = '0';
+            document.getElementById('avg-session-time').textContent = '0초';
+            
+            // 차트 초기화
+            showNoData('areaChart');
+            showNoData('deviceChart');
+            showNoData('timeChart');
+            
+            // 세션 테이블 초기화
+            const tbody = document.getElementById('sessions-table-body');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">데이터가 없습니다.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 데이터 표시
+        function displayDashboardData(data) {
+            // 차트 초기화
+            initializeCharts();
+
+            // 통계 업데이트
+            const totalSessions = data.reduce((sum, area) => sum + area.visitor_count, 0);
+            document.getElementById('total-sessions').textContent = totalSessions;
+
+            // 총 페이지뷰와 상호작용은 API에서 제공하지 않으므로 '-'로 표시
+            document.getElementById('total-pageviews').textContent = '-';
+            document.getElementById('total-interactions').textContent = '-';
+            document.getElementById('avg-session-time').textContent = '-';
+
+            // 영역별 체류시간 차트 데이터 업데이트
+            charts.areaChart.data.labels = data.map(area => area.area_name);
+            charts.areaChart.data.datasets[0].data = data.map(area => 
+                Math.round(area.avg_time_spent / 1000) // 밀리초를 초로 변환
+            );
+            charts.areaChart.update();
+
+            // 세션 테이블 로드
+            loadSessionsTable();
         }
 
         // 차트 업데이트
@@ -458,24 +502,17 @@
         }
 
         // 초기화
-        document.addEventListener('DOMContentLoaded', () => {
-            // 오늘 날짜와 7일 전 날짜를 기본값으로 설정
+        // 페이지 로드 시 오늘 날짜 기준으로 초기화
+        window.addEventListener('DOMContentLoaded', () => {
             const today = new Date();
             const weekAgo = new Date(today);
-            weekAgo.setDate(weekAgo.getDate() - 7);
+            weekAgo.setDate(today.getDate() - 7);
 
             document.getElementById('date-from').value = weekAgo.toISOString().split('T')[0];
             document.getElementById('date-to').value = today.toISOString().split('T')[0];
 
-            initializeCharts();
             loadDashboardData();
-
-            // 필터 변경 이벤트
-            ['date-from', 'date-to', 'page-filter'].forEach(id => {
-                document.getElementById(id)?.addEventListener('change', loadDashboardData);
-            });
         });
     </script>
 </body>
-</html> 
 </html> 
