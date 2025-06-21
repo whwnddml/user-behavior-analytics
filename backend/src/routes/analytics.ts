@@ -308,7 +308,7 @@ router.get('/dashboard/sessions', async (req: Request, res: Response) => {
 });
 
 // 세션 상세 정보 API
-router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
+router.get('/sessions/:sessionId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { sessionId } = req.params;
     const sessionDetail = await AnalyticsModel.getSessionDetail(sessionId);
@@ -321,16 +321,14 @@ router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
       });
     }
 
-    const response: ApiResponse = {
+    return res.json({
       success: true,
       message: 'Session details retrieved successfully',
       data: sessionDetail
-    };
-
-    res.json(response);
+    });
   } catch (error) {
     logger.error('Error fetching session details:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch session details',
       error: error instanceof Error ? error.message : 'Unknown error'
