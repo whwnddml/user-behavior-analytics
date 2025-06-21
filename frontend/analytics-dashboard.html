@@ -392,7 +392,7 @@
         // 세션 테이블 로드
         async function loadSessionsTable() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/analytics/sessions?limit=10`);
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`);
                 if (!response.ok) throw new Error('API 요청 실패');
                 
                 const result = await response.json();

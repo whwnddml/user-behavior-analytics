@@ -414,3 +414,35 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id)?.addEventListener('change', loadDashboardData);
     });
 }); 
+
+// 세션 목록 조회
+async function loadSessionsTable() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`);
+        if (!response.ok) throw new Error('API 요청 실패');
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message);
+
+        const tbody = document.getElementById('sessions-table-body');
+        tbody.innerHTML = result.data.map(session => `
+            <tr>
+                <td>${session.sessionId.substring(0, 8)}...</td>
+                <td>${new Date(session.startTime).toLocaleString()}</td>
+                <td>${session.deviceType || '-'}</td>
+                <td>${session.browserName || '-'}</td>
+                <td>${session.pageviews || 0}</td>
+                <td>${session.totalInteractions || 0}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('세션 데이터 로드 실패:', error);
+        document.getElementById('sessions-table-body').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-danger">
+                    데이터를 불러오는데 실패했습니다: ${error.message}
+                </td>
+            </tr>
+        `;
+    }
+} 
