@@ -350,37 +350,44 @@
                 const dateTo = document.getElementById('date-to').value;
                 const page = document.getElementById('page-filter').value;
 
-                // 대시보드 통계 로드
-                const statsResponse = await fetch(
-                    `${API_BASE_URL}/api/analytics/dashboard/stats?` + 
-                    new URLSearchParams({
-                        ...(dateFrom && { dateFrom }),
-                        ...(dateTo && { dateTo }),
-                        ...(page && { page })
-                    })
-                );
-                
-                if (!statsResponse.ok) {
-                    throw new Error(`API 요청 실패: ${statsResponse.status} ${statsResponse.statusText}`);
+                // API 요청을 병렬로 실행
+                const [statsResponse, sessionsResponse, deviceResponse, hourlyResponse] = await Promise.all([
+                    // 대시보드 통계
+                    fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?` + 
+                        new URLSearchParams({
+                            ...(dateFrom && { dateFrom }),
+                            ...(dateTo && { dateTo }),
+                            ...(page && { page })
+                        })),
+                    // 세션 목록
+                    fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`),
+                    // 디바이스별 통계
+                    fetch(`${API_BASE_URL}/api/analytics/device-stats?` +
+                        new URLSearchParams({
+                            ...(dateFrom && { dateFrom }),
+                            ...(dateTo && { dateTo })
+                        })),
+                    // 시간대별 통계
+                    fetch(`${API_BASE_URL}/api/analytics/hourly-stats?` +
+                        new URLSearchParams({
+                            ...(dateFrom && { dateFrom }),
+                            ...(dateTo && { dateTo })
+                        }))
+                ]);
+
+                if (!statsResponse.ok || !sessionsResponse.ok || !deviceResponse.ok || !hourlyResponse.ok) {
+                    throw new Error('일부 API 요청이 실패했습니다.');
                 }
 
-                const statsResult = await statsResponse.json();
-                if (!statsResult.success) {
-                    throw new Error(statsResult.message || 'API 요청 실패');
-                }
+                const [statsResult, sessionsResult, deviceResult, hourlyResult] = await Promise.all([
+                    statsResponse.json(),
+                    sessionsResponse.json(),
+                    deviceResponse.json(),
+                    hourlyResponse.json()
+                ]);
 
-                // 세션 통계 로드
-                const sessionsResponse = await fetch(
-                    `${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`
-                );
-
-                if (!sessionsResponse.ok) {
-                    throw new Error(`세션 API 요청 실패: ${sessionsResponse.status}`);
-                }
-
-                const sessionsResult = await sessionsResponse.json();
-                if (!sessionsResult.success) {
-                    throw new Error(sessionsResult.message || '세션 데이터 로드 실패');
+                if (!statsResult.success || !sessionsResult.success || !deviceResult.success || !hourlyResult.success) {
+                    throw new Error('일부 데이터를 가져오는데 실패했습니다.');
                 }
 
                 // 통계 데이터 표시
@@ -389,6 +396,16 @@
                 // 세션 테이블 업데이트
                 if (sessionsResult.data) {
                     updateSessionsTable(sessionsResult.data);
+                }
+
+                // 디바이스별 통계 업데이트
+                if (deviceResult.data) {
+                    updateDeviceChart(deviceResult.data);
+                }
+
+                // 시간대별 활동 업데이트
+                if (hourlyResult.data) {
+                    updateHourlyChart(hourlyResult.data);
                 }
 
             } catch (error) {
@@ -521,6 +538,43 @@
                     <td>${session.total_interactions || 0}</td>
                 </tr>
             `).join('');
+        }
+
+        // 디바이스별 통계 차트 업데이트
+        function updateDeviceChart(data) {
+            if (!data || data.length === 0) {
+                showNoData('deviceChart');
+                return;
+            }
+
+            const deviceTypes = {};
+            data.forEach(stat => {
+                const type = stat.device_type || 'unknown';
+                deviceTypes[type] = (deviceTypes[type] || 0) + stat.session_count;
+            });
+
+            charts.deviceChart.data.labels = Object.keys(deviceTypes);
+            charts.deviceChart.data.datasets[0].data = Object.values(deviceTypes);
+            charts.deviceChart.update();
+        }
+
+        // 시간대별 활동 차트 업데이트
+        function updateHourlyChart(data) {
+            if (!data || data.length === 0) {
+                showNoData('timeChart');
+                return;
+            }
+
+            const hourlyData = new Array(24).fill(0);
+            data.forEach(stat => {
+                const hour = parseInt(stat.hour);
+                if (!isNaN(hour) && hour >= 0 && hour < 24) {
+                    hourlyData[hour] = stat.session_count;
+                }
+            });
+
+            charts.timeChart.data.datasets[0].data = hourlyData;
+            charts.timeChart.update();
         }
 
         // 초기화
