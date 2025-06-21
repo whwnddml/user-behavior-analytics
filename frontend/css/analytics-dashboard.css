@@ -56,3 +56,55 @@
     color: #6c757d;
     padding: 2rem;
 } 
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+}
+
+.card {
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* 차트 영역 스타일 */
+.row .col-md-6 .card .chart-container {
+    height: 250px;
+}
+
+.row .col-md-12 .card .chart-container {
+    height: 300px;
+}
+
+/* 통계 카드 스타일 */
+.card h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2196F3;
+}
+
+.card h5.card-title {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+/* 반응형 조정 */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px;
+    }
+    
+    .row .col-md-6 .card .chart-container,
+    .row .col-md-12 .card .chart-container {
+        height: 250px;
+    }
+} 
