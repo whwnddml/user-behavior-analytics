@@ -9,6 +9,7 @@ import {
   FormAnalyticsData,
   FormFieldAnalyticsData
 } from '../types';
+import logger from '../config/logger';
 
 export class AnalyticsModel {
   // 세션 생성 또는 업데이트
@@ -341,7 +342,7 @@ export class AnalyticsModel {
   }
 
   // 특정 세션 상세 정보
-  static async getSessionDetail(sessionId: string | undefined): Promise<any> {
+  static async getSessionDetail(sessionId: string | undefined): Promise<any | null> {
     if (!sessionId) return null;
 
     const sessionQuery = `
@@ -373,19 +374,28 @@ export class AnalyticsModel {
       LIMIT 100
     `;
 
-    const [sessionResult, pageviewsResult, areaResult, interactionsResult] = await Promise.all([
-      pool.query(sessionQuery, [sessionId]),
-      pool.query(pageviewsQuery, [sessionId]),
-      pool.query(areaEngagementsQuery, [sessionId]),
-      pool.query(interactionsQuery, [sessionId])
-    ]);
+    try {
+      const [sessionResult, pageviewsResult, areaResult, interactionsResult] = await Promise.all([
+        pool.query(sessionQuery, [sessionId]),
+        pool.query(pageviewsQuery, [sessionId]),
+        pool.query(areaEngagementsQuery, [sessionId]),
+        pool.query(interactionsQuery, [sessionId])
+      ]);
 
-    return {
-      session: sessionResult.rows[0],
-      pageviews: pageviewsResult.rows,
-      areaEngagements: areaResult.rows,
-      interactions: interactionsResult.rows
-    };
+      if (sessionResult.rows.length === 0) {
+        return null;
+      }
+
+      return {
+        session: sessionResult.rows[0],
+        pageviews: pageviewsResult.rows,
+        areaEngagements: areaResult.rows,
+        interactions: interactionsResult.rows
+      };
+    } catch (error) {
+      logger.error('Error fetching session details:', error);
+      throw error;
+    }
   }
 
   // 영역별 통계
