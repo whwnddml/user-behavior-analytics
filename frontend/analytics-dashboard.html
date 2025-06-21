@@ -436,7 +436,10 @@
             document.getElementById('total-sessions').textContent = data.summary.totalSessions.toLocaleString();
             document.getElementById('total-pageviews').textContent = data.summary.totalPageviews;
             document.getElementById('total-interactions').textContent = data.summary.totalInteractions;
-            document.getElementById('avg-session-time').textContent = data.summary.avgSessionTime;
+            document.getElementById('avg-session-time').textContent = 
+                data.summary.avgSessionTime.value > 0 
+                    ? `${data.summary.avgSessionTime.value}분`
+                    : '0분';
 
             // 영역별 체류시간 차트 데이터 업데이트
             if (data.stats.length > 0) {
