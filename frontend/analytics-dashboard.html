@@ -400,21 +400,33 @@
             // 차트 초기화
             initializeCharts();
 
-            // 통계 업데이트
-            const totalSessions = data.reduce((sum, area) => sum + area.visitor_count, 0);
-            document.getElementById('total-sessions').textContent = totalSessions;
+            // 데이터가 없는 경우 처리
+            if (!data || data.length === 0) {
+                displayNoDataMessage();
+                return;
+            }
 
-            // 총 페이지뷰와 상호작용은 API에서 제공하지 않으므로 '-'로 표시
+            // 통계 업데이트
+            const totalSessions = data.reduce((sum, area) => sum + (area.visitor_count || 0), 0);
+            const avgTimeSpent = data.reduce((sum, area) => sum + (area.avg_time_spent || 0), 0) / data.length;
+
+            // 통계 표시
+            document.getElementById('total-sessions').textContent = totalSessions.toLocaleString();
             document.getElementById('total-pageviews').textContent = '-';
             document.getElementById('total-interactions').textContent = '-';
-            document.getElementById('avg-session-time').textContent = '-';
+            document.getElementById('avg-session-time').textContent = 
+                avgTimeSpent ? `${Math.round(avgTimeSpent / 1000)}초` : '-';
 
             // 영역별 체류시간 차트 데이터 업데이트
-            charts.areaChart.data.labels = data.map(area => area.area_name);
-            charts.areaChart.data.datasets[0].data = data.map(area => 
-                Math.round(area.avg_time_spent / 1000) // 밀리초를 초로 변환
-            );
-            charts.areaChart.update();
+            if (data.length > 0) {
+                charts.areaChart.data.labels = data.map(area => area.area_name || '알 수 없음');
+                charts.areaChart.data.datasets[0].data = data.map(area => 
+                    Math.round((area.avg_time_spent || 0) / 1000) // 밀리초를 초로 변환
+                );
+                charts.areaChart.update();
+            } else {
+                showNoData('areaChart');
+            }
 
             // 세션 테이블 로드
             loadSessionsTable();
