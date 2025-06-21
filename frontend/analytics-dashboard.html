@@ -331,43 +331,49 @@
                 const dateTo = document.getElementById('date-to').value;
                 const page = document.getElementById('page-filter').value;
 
-                // API 호출
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?${new URLSearchParams({
-                    dateFrom,
-                    dateTo,
-                    page
-                })}`);
-
-                if (!response.ok) throw new Error('API 요청 실패');
+                const response = await fetch(
+                    `${API_BASE_URL}/api/analytics/dashboard/stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${page}`
+                );
                 
+                if (!response.ok) {
+                    throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`);
+                }
+
                 const result = await response.json();
-                if (!result.success) throw new Error(result.message);
+                if (!result.success) {
+                    throw new Error(result.message || 'API 요청 실패');
+                }
 
                 // 데이터가 없는 경우 처리
-                if (!result.data) {
-                    document.getElementById('total-sessions').textContent = '0';
-                    document.getElementById('total-pageviews').textContent = '0';
-                    document.getElementById('total-interactions').textContent = '0';
-                    document.getElementById('avg-session-time').textContent = '0초';
-                    showNoData('areaChart');
-                    showNoData('deviceChart');
-                    showNoData('timeChart');
+                if (!result.data || result.data.length === 0) {
+                    displayNoDataMessage();
                     return;
                 }
 
-                // 통계 업데이트
-                document.getElementById('total-sessions').textContent = result.data.totalSessions || 0;
-                document.getElementById('total-pageviews').textContent = result.data.totalPageviews || 0;
-                document.getElementById('total-interactions').textContent = result.data.totalInteractions || 0;
-                document.getElementById('avg-session-time').textContent = 
-                    ((result.data.avgSessionTime || 0) / 1000).toFixed(1) + '초';
-
-                updateCharts(result.data);
-                await loadSessionsTable(page);
+                // 데이터 표시 로직
+                displayDashboardData(result.data);
             } catch (error) {
                 console.error('데이터 로드 실패:', error);
-                showError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
+                displayErrorMessage(error.message);
             }
+        }
+
+        function displayNoDataMessage() {
+            const messageContainer = document.getElementById('dashboard-content');
+            messageContainer.innerHTML = `
+                <div class="alert alert-info" role="alert">
+                    선택한 기간에 대한 데이터가 없습니다.
+                </div>
+            `;
+        }
+
+        function displayErrorMessage(message) {
+            const messageContainer = document.getElementById('dashboard-content');
+            messageContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    ${message}
+                </div>
+            `;
         }
 
         // 차트 업데이트
@@ -471,4 +477,5 @@
         });
     </script>
 </body>
+</html> 
 </html> 
