@@ -276,12 +276,12 @@ export class AnalyticsModel {
 
     const dateFilter: string[] = [];
     if (dateFrom) {
-      dateFilter.push(`pv.start_time >= $${paramIndex}`);
+      dateFilter.push(`s.start_time >= $${paramIndex}`);
       values.push(dateFrom);
       paramIndex++;
     }
     if (dateTo) {
-      dateFilter.push(`pv.start_time <= $${paramIndex}`);
+      dateFilter.push(`s.start_time <= $${paramIndex}`);
       values.push(dateTo);
       paramIndex++;
     }
@@ -296,29 +296,44 @@ export class AnalyticsModel {
       ? 'WHERE ' + [...dateFilter, ...pageFilter].join(' AND ')
       : '';
 
-    // 대시보드 전체 통계
-    const areaStatsQuery = `
+    // 전체 통계 쿼리
+    const statsQuery = `
       WITH session_stats AS (
-        SELECT COUNT(DISTINCT s.session_id) as total_sessions
+        SELECT 
+          COUNT(DISTINCT s.session_id) as total_sessions,
+          COUNT(DISTINCT pv.pageview_id) as total_pageviews,
+          COUNT(DISTINCT i.interaction_id) as total_interactions,
+          EXTRACT(EPOCH FROM AVG(s.end_time - s.start_time)) as avg_session_time
         FROM sessions s
-        JOIN pageviews pv ON s.session_id = pv.session_id
+        LEFT JOIN pageviews pv ON s.session_id = pv.session_id
+        LEFT JOIN interactions i ON pv.pageview_id = i.pageview_id
         ${whereClause}
+      ),
+      area_stats AS (
+        SELECT 
+          ae.area_id,
+          ae.area_name,
+          AVG(ae.time_spent) as avg_time_spent,
+          COUNT(DISTINCT pv.session_id) as visitor_count,
+          SUM(ae.interaction_count) as total_interactions
+        FROM area_engagements ae
+        JOIN pageviews pv ON ae.pageview_id = pv.pageview_id
+        JOIN sessions s ON pv.session_id = s.session_id
+        ${whereClause}
+        GROUP BY ae.area_id, ae.area_name
       )
       SELECT 
-        ae.area_id,
-        ae.area_name,
-        AVG(ae.time_spent) as avg_time_spent,
-        COUNT(DISTINCT pv.session_id) as visitor_count,
-        ss.total_sessions
-      FROM area_engagements ae
-      JOIN pageviews pv ON ae.pageview_id = pv.pageview_id
-      CROSS JOIN session_stats ss
-      ${whereClause}
-      GROUP BY ae.area_id, ae.area_name, ss.total_sessions
-      ORDER BY avg_time_spent DESC
+        a.*,
+        s.total_sessions,
+        s.total_pageviews,
+        s.total_interactions as total_session_interactions,
+        s.avg_session_time
+      FROM area_stats a
+      CROSS JOIN session_stats s
+      ORDER BY a.avg_time_spent DESC
     `;
 
-    const result = await pool.query(areaStatsQuery, values);
+    const result = await pool.query(statsQuery, values);
     return result.rows;
   }
 
