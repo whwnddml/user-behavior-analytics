@@ -327,31 +327,60 @@
         // 데이터 로드
         async function loadDashboardData() {
             try {
+                // 기존 데이터 초기화
+                document.getElementById('total-sessions').textContent = '-';
+                document.getElementById('total-pageviews').textContent = '-';
+                document.getElementById('total-interactions').textContent = '-';
+                document.getElementById('avg-session-time').textContent = '-';
+
                 const dateFrom = document.getElementById('date-from').value;
                 const dateTo = document.getElementById('date-to').value;
                 const page = document.getElementById('page-filter').value;
 
-                const response = await fetch(
-                    `${API_BASE_URL}/api/analytics/dashboard/stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${page}`
+                // 대시보드 통계 로드
+                const statsResponse = await fetch(
+                    `${API_BASE_URL}/api/analytics/dashboard/stats?` + 
+                    new URLSearchParams({
+                        ...(dateFrom && { dateFrom }),
+                        ...(dateTo && { dateTo }),
+                        ...(page && { page })
+                    })
                 );
                 
-                if (!response.ok) {
-                    throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`);
+                if (!statsResponse.ok) {
+                    throw new Error(`API 요청 실패: ${statsResponse.status} ${statsResponse.statusText}`);
                 }
 
-                const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.message || 'API 요청 실패');
+                const statsResult = await statsResponse.json();
+                if (!statsResult.success) {
+                    throw new Error(statsResult.message || 'API 요청 실패');
                 }
+
+                // 세션 통계 로드
+                const sessionsResponse = await fetch(
+                    `${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`
+                );
+
+                if (!sessionsResponse.ok) {
+                    throw new Error(`세션 API 요청 실패: ${sessionsResponse.status}`);
+                }
+
+                const sessionsResult = await sessionsResponse.json();
 
                 // 데이터가 없는 경우 처리
-                if (!result.data || result.data.length === 0) {
+                if (!statsResult.data || statsResult.data.length === 0) {
                     displayNoDataMessage();
                     return;
                 }
 
-                // 데이터 표시 로직
-                displayDashboardData(result.data);
+                // 통계 데이터 표시
+                displayDashboardData(statsResult.data);
+
+                // 세션 테이블 업데이트
+                if (sessionsResult.success && sessionsResult.data) {
+                    updateSessionsTable(sessionsResult.data);
+                }
+
             } catch (error) {
                 console.error('데이터 로드 실패:', error);
                 displayErrorMessage(error.message);
@@ -427,9 +456,6 @@
             } else {
                 showNoData('areaChart');
             }
-
-            // 세션 테이블 로드
-            loadSessionsTable();
         }
 
         // 차트 업데이트
@@ -463,54 +489,30 @@
             }
         }
 
-        // 세션 테이블 로드
-        async function loadSessionsTable(page) {
-            try {
-                const params = new URLSearchParams({
-                    limit: '10'
-                });
-                if (page) params.append('page', page);
+        // 세션 테이블 업데이트
+        function updateSessionsTable(sessions) {
+            const tbody = document.getElementById('sessions-table-body');
+            if (!tbody) return;
 
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?${params}`);
-                if (!response.ok) throw new Error('API 요청 실패');
-                
-                const result = await response.json();
-                if (!result.success) throw new Error(result.message);
-
-                const tbody = document.getElementById('sessions-table-body');
-                
-                // 데이터가 없거나 배열이 아닌 경우 처리
-                if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center">
-                                표시할 세션 데이터가 없습니다.
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-
-                tbody.innerHTML = result.data.map(session => `
+            if (!sessions || sessions.length === 0) {
+                tbody.innerHTML = `
                     <tr>
-                        <td>${session.session_id ? session.session_id.substring(0, 8) : '-'}...</td>
-                        <td>${session.start_time ? new Date(session.start_time).toLocaleString() : '-'}</td>
-                        <td>${session.device_type || '-'}</td>
-                        <td>${session.browser_name || '-'}</td>
-                        <td>${session.pageviews || 0}</td>
-                        <td>${session.total_interactions || 0}</td>
-                    </tr>
-                `).join('');
-            } catch (error) {
-                console.error('세션 데이터 로드 실패:', error);
-                document.getElementById('sessions-table-body').innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center text-danger">
-                            데이터를 불러오는데 실패했습니다: ${error.message}
-                        </td>
+                        <td colspan="6" class="text-center">데이터가 없습니다.</td>
                     </tr>
                 `;
+                return;
             }
+
+            tbody.innerHTML = sessions.map(session => `
+                <tr>
+                    <td>${session.session_id ? session.session_id.substring(0, 8) : '-'}...</td>
+                    <td>${session.start_time ? new Date(session.start_time).toLocaleString() : '-'}</td>
+                    <td>${session.device_type || '-'}</td>
+                    <td>${session.browser_name || '-'}</td>
+                    <td>${session.pageviews || 0}</td>
+                    <td>${session.total_interactions || 0}</td>
+                </tr>
+            `).join('');
         }
 
         // 초기화
