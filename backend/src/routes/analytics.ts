@@ -267,17 +267,25 @@ router.get('/dashboard/stats', async (req: Request, res: Response) => {
 
     const response: ApiResponse = {
       success: true,
-      message: 'Dashboard statistics retrieved successfully',
-      data: stats
+      message: '대시보드 통계를 성공적으로 조회했습니다.',
+      data: {
+        stats,
+        summary: {
+          totalSessions: stats[0]?.total_sessions || 0,
+          totalPageviews: '-',
+          totalInteractions: '-',
+          avgSessionTime: '-'
+        }
+      }
     };
 
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     logger.error('Error fetching dashboard stats:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch dashboard statistics',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: '대시보드 통계 조회 실패',
+      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
     });
   }
 });

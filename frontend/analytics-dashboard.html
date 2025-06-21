@@ -366,18 +366,15 @@
                 }
 
                 const sessionsResult = await sessionsResponse.json();
-
-                // 데이터가 없는 경우 처리
-                if (!statsResult.data || statsResult.data.length === 0) {
-                    displayNoDataMessage();
-                    return;
+                if (!sessionsResult.success) {
+                    throw new Error(sessionsResult.message || '세션 데이터 로드 실패');
                 }
 
                 // 통계 데이터 표시
                 displayDashboardData(statsResult.data);
 
                 // 세션 테이블 업데이트
-                if (sessionsResult.success && sessionsResult.data) {
+                if (sessionsResult.data) {
                     updateSessionsTable(sessionsResult.data);
                 }
 
@@ -430,26 +427,21 @@
             initializeCharts();
 
             // 데이터가 없는 경우 처리
-            if (!data || data.length === 0) {
+            if (!data || !data.stats || data.stats.length === 0) {
                 displayNoDataMessage();
                 return;
             }
 
-            // 통계 업데이트
-            const totalSessions = data[0]?.total_sessions || 0;
-            const avgTimeSpent = data.reduce((sum, area) => sum + (area.avg_time_spent || 0), 0) / data.length;
-
-            // 통계 표시
-            document.getElementById('total-sessions').textContent = totalSessions.toLocaleString();
-            document.getElementById('total-pageviews').textContent = '-';
-            document.getElementById('total-interactions').textContent = '-';
-            document.getElementById('avg-session-time').textContent = 
-                avgTimeSpent ? `${Math.round(avgTimeSpent / 1000)}초` : '-';
+            // 요약 통계 표시
+            document.getElementById('total-sessions').textContent = data.summary.totalSessions.toLocaleString();
+            document.getElementById('total-pageviews').textContent = data.summary.totalPageviews;
+            document.getElementById('total-interactions').textContent = data.summary.totalInteractions;
+            document.getElementById('avg-session-time').textContent = data.summary.avgSessionTime;
 
             // 영역별 체류시간 차트 데이터 업데이트
-            if (data.length > 0) {
-                charts.areaChart.data.labels = data.map(area => area.area_name || '알 수 없음');
-                charts.areaChart.data.datasets[0].data = data.map(area => 
+            if (data.stats.length > 0) {
+                charts.areaChart.data.labels = data.stats.map(area => area.area_name || '알 수 없음');
+                charts.areaChart.data.datasets[0].data = data.stats.map(area => 
                     Math.round((area.avg_time_spent || 0) / 1000) // 밀리초를 초로 변환
                 );
                 charts.areaChart.update();
