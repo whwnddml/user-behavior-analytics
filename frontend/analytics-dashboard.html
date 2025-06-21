@@ -482,7 +482,8 @@
         // Helper functions for API calls
         async function fetchAPI(path, params) {
             const queryString = new URLSearchParams(params).toString();
-            const response = await fetch(`${API_BASE_URL}/${path}?${queryString}`);
+            const url = `${API_BASE_URL}/api/analytics${path}${queryString ? `?${queryString}` : ''}`;
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`API 요청 실패: ${response.statusText}`);
             }
