@@ -303,12 +303,14 @@ export class AnalyticsModel {
           COUNT(DISTINCT s.session_id) as total_sessions,
           COUNT(DISTINCT pv.pageview_id) as total_pageviews,
           COUNT(DISTINCT i.interaction_id) as total_interactions,
-          EXTRACT(EPOCH FROM AVG(
-            CASE 
-              WHEN s.end_time IS NULL THEN NOW() - s.start_time
-              ELSE s.end_time - s.start_time 
-            END
-          )) as avg_session_time
+          ROUND(
+            EXTRACT(EPOCH FROM AVG(
+              CASE 
+                WHEN s.end_time IS NULL THEN NOW() - s.start_time
+                ELSE s.end_time - s.start_time 
+              END
+            )) / 60
+          , 1) as avg_session_time
         FROM sessions s
         LEFT JOIN pageviews pv ON s.session_id = pv.session_id
         LEFT JOIN interactions i ON pv.pageview_id = i.pageview_id

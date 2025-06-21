@@ -274,7 +274,10 @@ router.get('/dashboard/stats', async (req: Request, res: Response) => {
           totalSessions: stats[0]?.total_sessions || 0,
           totalPageviews: stats[0]?.total_pageviews || 0,
           totalInteractions: stats[0]?.total_session_interactions || 0,
-          avgSessionTime: stats[0]?.avg_session_time ? Math.round(stats[0].avg_session_time) : 0
+          avgSessionTime: {
+            value: stats[0]?.avg_session_time || 0,
+            unit: 'minutes'
+          }
         }
       }
     };
