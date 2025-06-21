@@ -89,12 +89,8 @@
                         <label for="page-filter" class="form-label">페이지</label>
                         <select id="page-filter" class="form-control">
                             <option value="">전체</option>
-                            <option value="analytics-dashboard.html">분석 대시보드</option>
-                            <option value="dashboard.html">상세 대시보드</option>
-                            <option value="simple-dashboard.html">간단한 대시보드</option>
                             <option value="index.html">메인 페이지</option>
                             <option value="example-page.html">예시 페이지</option>
-                            <option value="debug-test.html">디버그 테스트</option>
                             <option value="test-frontend.html">테스트 페이지</option>
                         </select>
                     </div>
@@ -336,7 +332,7 @@
                 const page = document.getElementById('page-filter').value;
 
                 // API 호출
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats?${new URLSearchParams({
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?${new URLSearchParams({
                     dateFrom,
                     dateTo,
                     page
@@ -347,6 +343,18 @@
                 const result = await response.json();
                 if (!result.success) throw new Error(result.message);
 
+                // 데이터가 없는 경우 처리
+                if (!result.data) {
+                    document.getElementById('total-sessions').textContent = '0';
+                    document.getElementById('total-pageviews').textContent = '0';
+                    document.getElementById('total-interactions').textContent = '0';
+                    document.getElementById('avg-session-time').textContent = '0초';
+                    showNoData('areaChart');
+                    showNoData('deviceChart');
+                    showNoData('timeChart');
+                    return;
+                }
+
                 // 통계 업데이트
                 document.getElementById('total-sessions').textContent = result.data.totalSessions || 0;
                 document.getElementById('total-pageviews').textContent = result.data.totalPageviews || 0;
@@ -355,7 +363,7 @@
                     ((result.data.avgSessionTime || 0) / 1000).toFixed(1) + '초';
 
                 updateCharts(result.data);
-                loadSessionsTable();
+                await loadSessionsTable(page);
             } catch (error) {
                 console.error('데이터 로드 실패:', error);
                 showError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
@@ -394,9 +402,14 @@
         }
 
         // 세션 테이블 로드
-        async function loadSessionsTable() {
+        async function loadSessionsTable(page) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`);
+                const params = new URLSearchParams({
+                    limit: '10'
+                });
+                if (page) params.append('page', page);
+
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?${params}`);
                 if (!response.ok) throw new Error('API 요청 실패');
                 
                 const result = await response.json();
