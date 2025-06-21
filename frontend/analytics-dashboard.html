@@ -248,6 +248,10 @@
                 if (chart) chart.destroy();
             });
 
+            // "데이터가 없습니다" 메시지 제거
+            const noDataElements = document.querySelectorAll('.no-data');
+            noDataElements.forEach(element => element.remove());
+
             // 영역별 체류시간 차트
             charts.areaChart = new Chart(document.getElementById('areaChart'), {
                 type: 'bar',
@@ -327,6 +331,15 @@
         // 데이터 로드
         async function loadDashboardData() {
             try {
+                // 에러 메시지 초기화
+                const errorDiv = document.getElementById('error-message');
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
+
+                // "데이터가 없습니다" 메시지 초기화
+                const noDataElements = document.querySelectorAll('.no-data');
+                noDataElements.forEach(element => element.remove());
+
                 // 기존 데이터 초기화
                 document.getElementById('total-sessions').textContent = '-';
                 document.getElementById('total-pageviews').textContent = '-';
