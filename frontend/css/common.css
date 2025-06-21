@@ -1,0 +1,79 @@
+/* 공통 레이아웃 */
+.container { 
+    max-width: 1200px; 
+    margin: 2rem auto; 
+}
+
+/* 네비게이션 바 커스텀 스타일 */
+.navbar {
+    padding: 0.5rem 0;
+}
+
+.navbar-brand {
+    font-weight: 500;
+}
+
+.navbar .nav-link {
+    padding: 0.5rem 1rem;
+    transition: color 0.2s;
+}
+
+.navbar .nav-link:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* 공통 카드 스타일 */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1rem;
+    border-radius: 8px;
+}
+
+/* 공통 상태 메시지 스타일 */
+.status-message {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.status-message.success { 
+    background: #d4edda; 
+    color: #155724; 
+}
+
+.status-message.error { 
+    background: #f8d7da; 
+    color: #721c24; 
+}
+
+/* 공통 버튼 스타일 */
+.btn-custom {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-custom:hover {
+    background: #0056b3;
+}
+
+/* 공통 차트 컨테이너 */
+.chart-container {
+    position: relative;
+    margin: auto;
+    height: 300px;
+}
+
+/* 데이터 없음 표시 */
+.no-data {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #666;
+    text-align: center;
+} 

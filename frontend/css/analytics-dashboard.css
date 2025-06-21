@@ -1,0 +1,58 @@
+/* 메인 대시보드 전용 스타일 */
+
+/* 필터 섹션 */
+.filter-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+/* 통계 카드 */
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.stat-card h2 {
+    color: #007bff;
+    font-size: 2.5rem;
+    margin-bottom: 0;
+}
+
+.stat-card .card-title {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* 차트 영역 */
+.chart-section {
+    margin-top: 2rem;
+}
+
+.chart-section .card-title {
+    color: #495057;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+/* 세션 테이블 */
+.sessions-table {
+    margin-top: 2rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.table th {
+    font-weight: 500;
+    color: #495057;
+}
+
+/* 로딩 상태 */
+.loading {
+    text-align: center;
+    color: #6c757d;
+    padding: 2rem;
+} 

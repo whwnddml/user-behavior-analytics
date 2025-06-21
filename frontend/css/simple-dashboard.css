@@ -1,0 +1,61 @@
+/* 간단 대시보드 전용 스타일 */
+
+/* 통계 그리드 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+/* 통계 카드 */
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stat-card .value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-card .label {
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+/* API 테스트 영역 */
+.api-test {
+    margin-top: 2rem;
+}
+
+.api-test h3 {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+#api-response {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+/* 마지막 업데이트 표시 */
+.last-updated {
+    margin-top: 2rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* 액션 버튼 영역 */
+.actions {
+    margin: 1rem 0;
+    display: flex;
+    gap: 1rem;
+} 
