@@ -4,1063 +4,441 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>사용자 행동 분석 대시보드</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- 커스텀 스타일 -->
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 1rem;
         }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-            color: #333;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 0.5rem;
-            font-weight: 300;
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: 1.1em;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .controls {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .control-group label {
-            font-weight: 600;
-            color: #555;
-            font-size: 0.9em;
-        }
-
-        .control-group input {
-            padding: 0.75rem;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 0.9em;
-            transition: border-color 0.3s ease;
-        }
-
-        .control-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .control-group select {
-            padding: 0.75rem;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 0.9em;
-            transition: border-color 0.3s ease;
-            background: white;
-        }
-
-        .control-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            align-self: end;
-        }
-
-        .btn:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .btn.refresh {
-            background: #28a745;
-        }
-
-        .btn.refresh:hover {
-            background: #218838;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            transition: transform 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-card .value {
-            font-size: 2.5em;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-card .label {
-            color: #666;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.9em;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
         .chart-container {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .chart-container h3 {
-            margin-bottom: 1.5rem;
-            color: #333;
-            font-size: 1.3em;
-            font-weight: 600;
-        }
-
-        .chart-canvas {
             position: relative;
+            margin: auto;
             height: 300px;
-            width: 100%;
         }
-
-        .sessions-table {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-            grid-column: 1 / -1;
-        }
-
-        .table-header {
-            background: #667eea;
-            color: white;
-            padding: 1.5rem;
-            font-size: 1.3em;
-            font-weight: 600;
-        }
-
-        .table-content {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #555;
-            position: sticky;
-            top: 0;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        .session-id {
-            font-family: monospace;
-            font-size: 0.9em;
-            color: #667eea;
-            cursor: pointer;
-        }
-
-        .session-id:hover {
-            text-decoration: underline;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
-            border: 1px solid #f5c6cb;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
-            border: 1px solid #c3e6cb;
-        }
-
-        .last-updated {
-            text-align: center;
+        .no-data {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: #666;
-            font-size: 0.9em;
-            margin-top: 2rem;
+            text-align: center;
         }
-
-        /* 반응형 */
-        @media (max-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            }
+        .error-message {
+            display: none;
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 4px;
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📊 사용자 행동 분석 대시보드</h1>
-        <p>실시간 사용자 행동 데이터 분석 및 시각화</p>
-    </div>
+    <!-- 네비게이션 바 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">사용자 행동 분석</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="analytics-dashboard.html">메인 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="simple-dashboard.html">간단한 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">상세 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="test-frontend.html">테스트 페이지</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
     <div class="container mt-4">
         <h1 class="mb-4">사용자 행동 분석 대시보드</h1>
         
+        <!-- 에러 메시지 -->
+        <div id="error-message" class="error-message"></div>
+
         <!-- 필터 섹션 -->
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <label for="date-from" class="form-label">시작일</label>
-                <input type="date" id="date-from" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <label for="date-to" class="form-label">종료일</label>
-                <input type="date" id="date-to" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <label for="page-filter" class="form-label">페이지</label>
-                <select id="page-filter" class="form-control">
-                    <option value="">전체</option>
-                    <option value="index.html">메인 페이지</option>
-                    <option value="products.html">상품 목록</option>
-                    <option value="cart.html">장바구니</option>
-                </select>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="date-from" class="form-label">시작일</label>
+                        <input type="date" id="date-from" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date-to" class="form-label">종료일</label>
+                        <input type="date" id="date-to" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="page-filter" class="form-label">페이지</label>
+                        <select id="page-filter" class="form-control">
+                            <option value="">전체</option>
+                            <option value="index.html">메인 페이지</option>
+                            <option value="example-page.html">예시 페이지</option>
+                            <option value="test-frontend.html">테스트 페이지</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button onclick="loadDashboardData()" class="btn btn-primary w-100">
+                            새로고침
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 에러 메시지 영역 -->
-        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+        <!-- 통계 카드 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">총 세션</h5>
+                        <h2 id="total-sessions" class="mb-0">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">총 페이지뷰</h5>
+                        <h2 id="total-pageviews" class="mb-0">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">총 상호작용</h5>
+                        <h2 id="total-interactions" class="mb-0">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">평균 세션 시간</h5>
+                        <h2 id="avg-session-time" class="mb-0">-</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- 차트 영역 -->
         <div class="row">
             <!-- 영역별 체류시간 차트 -->
-            <div class="col-md-12 mb-4">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-body">
-                        <canvas id="areaChart" width="400" height="200"></canvas>
+                        <h5 class="card-title">영역별 체류시간</h5>
+                        <div class="chart-container">
+                            <canvas id="areaChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- 디바이스별 통계 차트 -->
-            <div class="col-md-6 mb-4">
+            <div class="col-md-6">
                 <div class="card">
                     <div class="card-body">
-                        <canvas id="deviceChart" width="400" height="400"></canvas>
+                        <h5 class="card-title">디바이스별 통계</h5>
+                        <div class="chart-container">
+                            <canvas id="deviceChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- 시간대별 활동 차트 -->
-            <div class="col-md-6 mb-4">
+            <div class="col-md-6">
                 <div class="card">
                     <div class="card-body">
-                        <canvas id="timeChart" width="400" height="400"></canvas>
+                        <h5 class="card-title">시간대별 활동</h5>
+                        <div class="chart-container">
+                            <canvas id="timeChart"></canvas>
+                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 세션 테이블 -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">최근 세션</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>세션 ID</th>
+                                <th>시작 시간</th>
+                                <th>디바이스</th>
+                                <th>브라우저</th>
+                                <th>페이지뷰</th>
+                                <th>상호작용</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-table-body">
+                            <tr>
+                                <td colspan="6" class="text-center">데이터를 불러오는 중...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 분석 스크립트 -->
     <script>
         // API 기본 URL 설정
         const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
-            ? 'https://user-behavior-analytics.onrender.com' // 프로덕션 환경
-            : ''; // 개발 환경 (상대 경로 사용)
+            ? 'https://user-behavior-analytics.onrender.com'
+            : '';
 
-        // 전역 변수
-        let currentDateFilter = { from: null, to: null };
-
-        // 차트 색상 팔레트
-        const colors = {
-            primary: '#667eea',
-            secondary: '#764ba2',
-            success: '#28a745',
-            warning: '#ffc107',
-            danger: '#dc3545',
-            info: '#17a2b8',
-            gradient: ['#667eea', '#764ba2', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#f8f9fa']
+        // 차트 객체 저장소
+        let charts = {
+            areaChart: null,
+            deviceChart: null,
+            timeChart: null
         };
 
-        // 전역 차트 객체
-        let areaChart = null;
-        let deviceChart = null;
-        let timeChart = null;
-
-        // 초기 설정
-        document.addEventListener('DOMContentLoaded', () => {
-            // 날짜 기본값 설정
-            const today = new Date().toISOString().split('T')[0];
-            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-            
-            document.getElementById('date-from').value = weekAgo;
-            document.getElementById('date-to').value = today;
-
-            // 대시보드 로드
-            updateDashboard();
-        });
-
-        // 상태 메시지 표시
-        function showMessage(message, type = 'info') {
-            const statusDiv = document.getElementById('status-message');
-            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
-            
-            if (type === 'success') {
-                setTimeout(() => {
-                    statusDiv.innerHTML = '';
-                }, 3000);
-            }
+        // 에러 표시
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
         }
 
-        // 날짜 필터 적용
-        function applyDateFilter() {
-            const dateFrom = document.getElementById('date-from').value;
-            const dateTo = document.getElementById('date-to').value;
-            
-            if (dateFrom && dateTo && dateFrom > dateTo) {
-                alert('시작일이 종료일보다 늦을 수 없습니다.');
-                return;
-            }
-            
-            currentDateFilter = { from: dateFrom, to: dateTo };
-            updateDashboard();
-        }
-
-        // 대시보드 새로고침
-        async function refreshDashboard() {
-            showMessage('데이터를 불러오는 중...', 'info');
-            
-            try {
-                await Promise.all([
-                    loadDashboardStats(),
-                    loadHourlyChart(),
-                    loadDeviceChart(),
-                    loadAreaChart(),
-                    loadPerformanceChart(),
-                    loadSessionsTable()
-                ]);
-                
-                updateLastUpdated();
-                showMessage('데이터가 성공적으로 업데이트되었습니다.', 'success');
-                
-            } catch (error) {
-                console.error('Dashboard refresh error:', error);
-                showMessage('데이터 로드 중 오류가 발생했습니다. 백엔드 서버가 실행 중인지 확인하세요.', 'error');
-            }
-        }
-
-        // 대시보드 전체 통계 로드
-        async function loadDashboardStats() {
-            const url = buildApiUrl('/api/analytics/dashboard/stats');
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.success) {
-                const stats = data.data;
-                document.getElementById('total-sessions').textContent = Number(stats.total_sessions || 0).toLocaleString();
-                document.getElementById('total-pageviews').textContent = Number(stats.total_pageviews || 0).toLocaleString();
-                document.getElementById('avg-session-duration').textContent = Math.round(stats.avg_session_duration || 0);
-                document.getElementById('total-interactions').textContent = Number(stats.total_interactions || 0).toLocaleString();
-                document.getElementById('avg-load-time').textContent = Math.round(stats.avg_load_time || 0);
-                document.getElementById('avg-scroll-depth').textContent = Math.round(stats.avg_scroll_depth || 0);
-            }
-        }
-
-        // 시간대별 차트 로드
-        async function loadHourlyChart() {
-            const url = buildApiUrl('/api/analytics/dashboard/hourly');
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.success) {
-                const hourlyData = data.data;
-                
-                // 24시간 데이터 배열 생성
-                const hours = Array.from({length: 24}, (_, i) => i);
-                const sessionCounts = hours.map(hour => {
-                    const found = hourlyData.find(item => parseInt(item.hour) === hour);
-                    return found ? parseInt(found.session_count) : 0;
-                });
-                
-                createOrUpdateChart('hourlyChart', {
-                    type: 'line',
-                    data: {
-                        labels: hours.map(h => `${h}:00`),
-                        datasets: [{
-                            label: '세션 수',
-                            data: sessionCounts,
-                            borderColor: colors.primary,
-                            backgroundColor: colors.primary + '20',
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        // 디바이스 차트 로드
-        async function loadDeviceChart() {
-            const url = buildApiUrl('/api/analytics/dashboard/devices');
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const deviceData = data.data;
-                
-                // 디바이스별 데이터 집계
-                const deviceCounts = {};
-                deviceData.forEach(item => {
-                    const device = item.device_type || 'Unknown';
-                    deviceCounts[device] = (deviceCounts[device] || 0) + parseInt(item.session_count);
-                });
-                
-                createOrUpdateChart('deviceChart', {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(deviceCounts),
-                        datasets: [{
-                            data: Object.values(deviceCounts),
-                            backgroundColor: colors.gradient.slice(0, Object.keys(deviceCounts).length)
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            } else {
-                createOrUpdateChart('deviceChart', {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['데이터 없음'],
-                        datasets: [{
-                            data: [1],
-                            backgroundColor: ['#e9ecef']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        // 영역별 차트 로드
-        async function loadAreaChart() {
-            const url = buildApiUrl('/api/analytics/dashboard/areas');
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const areaData = data.data;
-                
-                createOrUpdateChart('areaChart', {
-                    type: 'bar',
-                    data: {
-                        labels: areaData.map(item => item.area_name || item.area_id),
-                        datasets: [{
-                            label: '평균 체류시간 (ms)',
-                            data: areaData.map(item => Math.round(parseFloat(item.avg_time_spent))),
-                            backgroundColor: colors.gradient.slice(0, areaData.length)
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            } else {
-                createOrUpdateChart('areaChart', {
-                    type: 'bar',
-                    data: {
-                        labels: ['데이터 없음'],
-                        datasets: [{
-                            label: '평균 체류시간 (ms)',
-                            data: [0],
-                            backgroundColor: ['#e9ecef']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        // 성능 차트 로드
-        async function loadPerformanceChart() {
-            const url = buildApiUrl('/api/analytics/dashboard/performance');
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const performanceData = data.data.slice(0, 10); // 상위 10개만
-                
-                createOrUpdateChart('performanceChart', {
-                    type: 'bar',
-                    data: {
-                        labels: performanceData.map(item => {
-                            try {
-                                const url = new URL(item.page_url);
-                                return url.pathname || '/';
-                            } catch {
-                                return item.page_url.substring(0, 20);
-                            }
-                        }),
-                        datasets: [{
-                            label: '평균 로딩시간 (ms)',
-                            data: performanceData.map(item => Math.round(parseFloat(item.avg_load_time))),
-                            backgroundColor: colors.info
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            } else {
-                createOrUpdateChart('performanceChart', {
-                    type: 'bar',
-                    data: {
-                        labels: ['데이터 없음'],
-                        datasets: [{
-                            label: '평균 로딩시간 (ms)',
-                            data: [0],
-                            backgroundColor: ['#e9ecef']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        // 세션 테이블 로드
-        async function loadSessionsTable() {
-            const url = buildApiUrl('/api/analytics/dashboard/sessions?limit=20');
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            if (data.success) {
-                const sessions = data.data.sessions;
-                const tbody = document.getElementById('sessions-tbody');
-                
-                if (sessions.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
-                                수집된 세션 데이터가 없습니다. 📊
-                            </td>
-                        </tr>
-                    `;
-                } else {
-                    tbody.innerHTML = sessions.map(session => `
-                        <tr>
-                            <td>
-                                <span class="session-id" onclick="showSessionDetail('${session.session_id}')">
-                                    ${session.session_id.substring(0, 20)}...
-                                </span>
-                            </td>
-                            <td>${formatDateTime(session.start_time)}</td>
-                            <td>${session.end_time ? formatDateTime(session.end_time) : '진행중'}</td>
-                            <td>${session.device_type || '-'}</td>
-                            <td>${session.browser_name || '-'}</td>
-                            <td>${session.pageviews}</td>
-                            <td>${session.total_interactions}</td>
-                            <td>${Math.round(parseFloat(session.max_scroll_depth))}%</td>
-                            <td>${Math.round(parseFloat(session.avg_load_time))}ms</td>
-                        </tr>
-                    `).join('');
-                }
-            }
-        }
-
-        // 차트 생성 또는 업데이트
-        function createOrUpdateChart(canvasId, config) {
-            const ctx = document.getElementById(canvasId);
-            
-            if (charts[canvasId]) {
-                charts[canvasId].destroy();
-            }
-            
-            charts[canvasId] = new Chart(ctx, config);
-        }
-
-        // API URL 빌드 (날짜 필터 포함)
-        function buildApiUrl(endpoint) {
-            const url = new URL(endpoint, API_BASE_URL);
-            
-            if (currentDateFilter.from) {
-                url.searchParams.set('dateFrom', currentDateFilter.from);
-            }
-            if (currentDateFilter.to) {
-                url.searchParams.set('dateTo', currentDateFilter.to);
-            }
-            
-            return url.toString();
-        }
-
-        // 날짜/시간 포맷
-        function formatDateTime(dateString) {
-            if (!dateString) return '-';
-            const date = new Date(dateString);
-            return date.toLocaleString('ko-KR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        // 마지막 업데이트 시간 표시
-        function updateLastUpdated() {
-            const now = new Date();
-            document.getElementById('last-updated').textContent = 
-                `마지막 업데이트: ${formatDateTime(now.toISOString())}`;
-        }
-
-        // 세션 상세 정보 표시
-        async function showSessionDetail(sessionId) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions/${sessionId}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    const sessionDetail = data.data;
-                    alert(`세션 상세 정보:\n\n` +
-                          `세션 ID: ${sessionDetail.session.session_id}\n` +
-                          `시작: ${formatDateTime(sessionDetail.session.start_time)}\n` +
-                          `종료: ${sessionDetail.session.end_time ? formatDateTime(sessionDetail.session.end_time) : '진행중'}\n` +
-                          `디바이스: ${sessionDetail.session.device_type}\n` +
-                          `브라우저: ${sessionDetail.session.browser_name}\n` +
-                          `페이지뷰: ${sessionDetail.pageviews.length}개\n` +
-                          `영역 상호작용: ${sessionDetail.areaEngagements.length}개\n` +
-                          `총 상호작용: ${sessionDetail.interactions.length}개`
-                    );
-                } else {
-                    alert('세션 정보를 불러올 수 없습니다.');
-                }
-            } catch (error) {
-                console.error('Session detail error:', error);
-                alert('세션 정보 로드 중 오류가 발생했습니다.');
-            }
-        }
-
-        // 자동 새로고침 (5분마다)
-        setInterval(refreshDashboard, 5 * 60 * 1000);
-
-        // 대시보드 업데이트
-        async function updateDashboard() {
-            try {
-                const dateFrom = document.getElementById('date-from').value;
-                const dateTo = document.getElementById('date-to').value;
-                const selectedPage = document.getElementById('page-filter').value;
-
-                // API 요청
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${selectedPage}`);
-                if (!response.ok) {
-                    throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.message || 'API 응답 오류');
-                }
-
-                // 데이터가 없는 경우 처리
-                if (!result.data || result.data.length === 0) {
-                    console.log('데이터가 없습니다.');
-                    clearCharts();
-                    return;
-                }
-
-                // 차트 업데이트
-                updateCharts(result.data);
-            } catch (error) {
-                console.error('대시보드 업데이트 중 오류:', error);
-                // 사용자에게 친숙한 에러 메시지 표시
-                const errorMessage = document.getElementById('error-message');
-                if (errorMessage) {
-                    errorMessage.textContent = `데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`;
-                    errorMessage.style.display = 'block';
-                } else {
-                    alert(`데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
-                }
-            }
+        // 차트 데이터 없음 표시
+        function showNoData(chartId) {
+            const container = document.getElementById(chartId).parentElement;
+            const noDataDiv = document.createElement('div');
+            noDataDiv.className = 'no-data';
+            noDataDiv.textContent = '데이터가 없습니다';
+            container.appendChild(noDataDiv);
         }
 
         // 차트 초기화
-        function clearCharts() {
-            // 기존 차트들 제거
-            if (areaChart) {
-                areaChart.destroy();
-                areaChart = null;
-            }
-            if (deviceChart) {
-                deviceChart.destroy();
-                deviceChart = null;
-            }
-            if (timeChart) {
-                timeChart.destroy();
-                timeChart = null;
-            }
-
-            // 각 차트 컨테이너에 "데이터 없음" 메시지 표시
-            const chartContainers = ['areaChart', 'deviceChart', 'timeChart'];
-            chartContainers.forEach(containerId => {
-                const container = document.getElementById(containerId);
-                const ctx = container.getContext('2d');
-                ctx.clearRect(0, 0, container.width, container.height);
-                ctx.font = '14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#666';
-                ctx.fillText('선택한 기간에 데이터가 없습니다.', container.width/2, container.height/2);
+        function initializeCharts() {
+            // 기존 차트 정리
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.destroy();
             });
-        }
 
-        // 차트 업데이트
-        function updateCharts(data) {
-            updateAreaChart(data);
-            updateDeviceChart(data);
-            updateTimeChart(data);
-        }
-
-        // 영역별 체류시간 차트 업데이트
-        function updateAreaChart(data) {
-            const ctx = document.getElementById('areaChart').getContext('2d');
-            
-            // 기존 차트 제거
-            if (areaChart) {
-                areaChart.destroy();
-            }
-
-            const areas = data.map(item => item.area_name);
-            const timeSpent = data.map(item => item.avg_time_spent);
-            const visitors = data.map(item => item.visitor_count);
-
-            areaChart = new Chart(ctx, {
+            // 영역별 체류시간 차트
+            charts.areaChart = new Chart(document.getElementById('areaChart'), {
                 type: 'bar',
                 data: {
-                    labels: areas,
-                    datasets: [
-                        {
-                            label: '평균 체류 시간 (초)',
-                            data: timeSpent,
-                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: '방문자 수',
-                            data: visitors,
-                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: '평균 체류 시간 (초)'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: '방문자 수'
-                            },
-                            grid: {
-                                drawOnChartArea: false
-                            }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: '영역별 체류시간 및 방문자 수'
-                        }
-                    }
-                }
-            });
-        }
-
-        // 디바이스별 통계 차트 업데이트
-        function updateDeviceChart(data) {
-            const ctx = document.getElementById('deviceChart').getContext('2d');
-            
-            // 기존 차트 제거
-            if (deviceChart) {
-                deviceChart.destroy();
-            }
-
-            // 디바이스별 데이터 집계
-            const deviceStats = {};
-            data.forEach(item => {
-                if (!deviceStats[item.device_type]) {
-                    deviceStats[item.device_type] = 0;
-                }
-                deviceStats[item.device_type] += item.visitor_count;
-            });
-
-            deviceChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(deviceStats),
+                    labels: [],
                     datasets: [{
-                        data: Object.values(deviceStats),
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.5)',
-                            'rgba(54, 162, 235, 0.5)',
-                            'rgba(255, 206, 86, 0.5)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)'
-                        ],
+                        label: '평균 체류시간 (초)',
+                        data: [],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
-                            text: '디바이스별 방문자 분포'
-                        },
-                        legend: {
-                            position: 'bottom'
+                            text: '영역별 평균 체류시간'
                         }
                     }
                 }
             });
-        }
 
-        // 시간대별 활동 차트 업데이트
-        function updateTimeChart(data) {
-            const ctx = document.getElementById('timeChart').getContext('2d');
-            
-            // 기존 차트 제거
-            if (timeChart) {
-                timeChart.destroy();
-            }
-
-            // 시간대별 데이터 집계
-            const timeStats = {};
-            data.forEach(item => {
-                const hour = new Date(item.first_engagement).getHours();
-                if (!timeStats[hour]) {
-                    timeStats[hour] = 0;
-                }
-                timeStats[hour] += item.visitor_count;
-            });
-
-            // 0-23시까지 데이터 채우기
-            const hours = Array.from({length: 24}, (_, i) => i);
-            const visitors = hours.map(hour => timeStats[hour] || 0);
-
-            timeChart = new Chart(ctx, {
-                type: 'line',
+            // 디바이스별 통계 차트
+            charts.deviceChart = new Chart(document.getElementById('deviceChart'), {
+                type: 'pie',
                 data: {
-                    labels: hours.map(h => `${h}시`),
+                    labels: [],
                     datasets: [{
-                        label: '방문자 수',
-                        data: visitors,
-                        fill: true,
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        tension: 0.4
+                        data: [],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)'
+                        ]
                     }]
                 },
                 options: {
                     responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '방문자 수'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: '시간'
-                            }
-                        }
-                    },
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
-                            text: '시간대별 방문자 수'
+                            text: '디바이스별 사용자 분포'
+                        }
+                    }
+                }
+            });
+
+            // 시간대별 활동 차트
+            charts.timeChart = new Chart(document.getElementById('timeChart'), {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}시`),
+                    datasets: [{
+                        label: '활동량',
+                        data: [],
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '시간대별 활동량'
                         }
                     }
                 }
             });
         }
+
+        // 데이터 로드
+        async function loadDashboardData() {
+            try {
+                const dateFrom = document.getElementById('date-from').value;
+                const dateTo = document.getElementById('date-to').value;
+                const page = document.getElementById('page-filter').value;
+
+                // API 호출
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats?${new URLSearchParams({
+                    dateFrom,
+                    dateTo,
+                    page
+                })}`);
+
+                if (!response.ok) throw new Error('API 요청 실패');
+                
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message);
+
+                // 통계 업데이트
+                document.getElementById('total-sessions').textContent = result.data.totalSessions || 0;
+                document.getElementById('total-pageviews').textContent = result.data.totalPageviews || 0;
+                document.getElementById('total-interactions').textContent = result.data.totalInteractions || 0;
+                document.getElementById('avg-session-time').textContent = 
+                    ((result.data.avgSessionTime || 0) / 1000).toFixed(1) + '초';
+
+                updateCharts(result.data);
+                loadSessionsTable();
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                showError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
+            }
+        }
+
+        // 차트 업데이트
+        function updateCharts(data) {
+            // 데이터가 없는 경우 처리
+            if (!data || Object.keys(data).length === 0) {
+                showNoData('areaChart');
+                showNoData('deviceChart');
+                showNoData('timeChart');
+                return;
+            }
+
+            // 영역별 체류시간
+            if (data.areaStats) {
+                charts.areaChart.data.labels = data.areaStats.map(stat => stat.areaName);
+                charts.areaChart.data.datasets[0].data = data.areaStats.map(stat => stat.avgTimeSpent);
+                charts.areaChart.update();
+            }
+
+            // 디바이스별 통계
+            if (data.deviceStats) {
+                charts.deviceChart.data.labels = data.deviceStats.map(stat => stat.deviceType);
+                charts.deviceChart.data.datasets[0].data = data.deviceStats.map(stat => stat.sessionCount);
+                charts.deviceChart.update();
+            }
+
+            // 시간대별 활동
+            if (data.hourlyStats) {
+                charts.timeChart.data.datasets[0].data = data.hourlyStats.map(stat => stat.sessionCount);
+                charts.timeChart.update();
+            }
+        }
+
+        // 세션 테이블 로드
+        async function loadSessionsTable() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/analytics/sessions?limit=10`);
+                if (!response.ok) throw new Error('API 요청 실패');
+                
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message);
+
+                const tbody = document.getElementById('sessions-table-body');
+                tbody.innerHTML = result.data.map(session => `
+                    <tr>
+                        <td>${session.sessionId.substring(0, 8)}...</td>
+                        <td>${new Date(session.startTime).toLocaleString()}</td>
+                        <td>${session.deviceType || '-'}</td>
+                        <td>${session.browserName || '-'}</td>
+                        <td>${session.pageviews || 0}</td>
+                        <td>${session.totalInteractions || 0}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('세션 데이터 로드 실패:', error);
+                document.getElementById('sessions-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger">
+                            데이터를 불러오는데 실패했습니다: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            // 오늘 날짜와 7일 전 날짜를 기본값으로 설정
+            const today = new Date();
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+
+            document.getElementById('date-from').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('date-to').value = today.toISOString().split('T')[0];
+
+            initializeCharts();
+            loadDashboardData();
+
+            // 필터 변경 이벤트
+            ['date-from', 'date-to', 'page-filter'].forEach(id => {
+                document.getElementById(id)?.addEventListener('change', loadDashboardData);
+            });
+        });
     </script>
 </body>
 </html> 
