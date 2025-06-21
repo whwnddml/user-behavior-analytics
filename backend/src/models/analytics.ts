@@ -296,17 +296,25 @@ export class AnalyticsModel {
       ? 'WHERE ' + [...dateFilter, ...pageFilter].join(' AND ')
       : '';
 
-    // 영역별 체류시간 통계
+    // 대시보드 전체 통계
     const areaStatsQuery = `
+      WITH session_stats AS (
+        SELECT COUNT(DISTINCT s.session_id) as total_sessions
+        FROM sessions s
+        JOIN pageviews pv ON s.session_id = pv.session_id
+        ${whereClause}
+      )
       SELECT 
         ae.area_id,
         ae.area_name,
         AVG(ae.time_spent) as avg_time_spent,
-        COUNT(DISTINCT pv.session_id) as visitor_count
+        COUNT(DISTINCT pv.session_id) as visitor_count,
+        ss.total_sessions
       FROM area_engagements ae
       JOIN pageviews pv ON ae.pageview_id = pv.pageview_id
+      CROSS JOIN session_stats ss
       ${whereClause}
-      GROUP BY ae.area_id, ae.area_name
+      GROUP BY ae.area_id, ae.area_name, ss.total_sessions
       ORDER BY avg_time_spent DESC
     `;
 

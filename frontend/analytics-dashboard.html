@@ -436,7 +436,7 @@
             }
 
             // 통계 업데이트
-            const totalSessions = data.reduce((sum, area) => sum + (area.visitor_count || 0), 0);
+            const totalSessions = data[0]?.total_sessions || 0;
             const avgTimeSpent = data.reduce((sum, area) => sum + (area.avg_time_spent || 0), 0) / data.length;
 
             // 통계 표시
