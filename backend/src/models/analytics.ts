@@ -341,7 +341,9 @@ export class AnalyticsModel {
   }
 
   // 특정 세션 상세 정보
-  static async getSessionDetail(sessionId: string): Promise<any> {
+  static async getSessionDetail(sessionId: string | undefined): Promise<any> {
+    if (!sessionId) return null;
+
     const sessionQuery = `
       SELECT * FROM sessions WHERE session_id = $1
     `;
