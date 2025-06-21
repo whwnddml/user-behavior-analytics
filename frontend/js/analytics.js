@@ -274,77 +274,91 @@ function initializeCharts() {
         if (chart) chart.destroy();
     });
 
-    // 영역별 체류시간 차트
-    charts.areaChart = new Chart(document.getElementById('areaChart'), {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: '평균 체류시간 (초)',
-                data: [],
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: '영역별 평균 체류시간'
-                }
-            }
-        }
-    });
+    // "데이터가 없습니다" 메시지 제거
+    const noDataElements = document.querySelectorAll('.no-data');
+    noDataElements.forEach(element => element.remove());
 
-    // 디바이스별 통계 차트
-    charts.deviceChart = new Chart(document.getElementById('deviceChart'), {
-        type: 'pie',
-        data: {
-            labels: [],
-            datasets: [{
-                data: [],
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.5)',
-                    'rgba(54, 162, 235, 0.5)',
-                    'rgba(255, 206, 86, 0.5)'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: '디바이스별 사용자 분포'
+    // 현재 페이지에 있는 차트만 초기화
+    const areaChartElement = document.getElementById('areaChart');
+    if (areaChartElement) {
+        charts.areaChart = new Chart(areaChartElement, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '평균 체류시간 (초)',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '영역별 평균 체류시간'
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
-    // 시간대별 활동 차트
-    charts.timeChart = new Chart(document.getElementById('timeChart'), {
-        type: 'line',
-        data: {
-            labels: Array.from({length: 24}, (_, i) => `${i}시`),
-            datasets: [{
-                label: '활동량',
-                data: [],
-                borderColor: 'rgba(75, 192, 192, 1)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: '시간대별 활동량'
+    const deviceChartElement = document.getElementById('deviceChart');
+    if (deviceChartElement) {
+        charts.deviceChart = new Chart(deviceChartElement, {
+            type: 'pie',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '디바이스별 사용자 분포'
+                    }
                 }
             }
-        }
-    });
+        });
+    }
+
+    const timeChartElement = document.getElementById('timeChart');
+    if (timeChartElement) {
+        charts.timeChart = new Chart(timeChartElement, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 24}, (_, i) => `${i}시`),
+                datasets: [{
+                    label: '활동량',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '시간대별 활동량'
+                    }
+                }
+            }
+        });
+    }
 }
 
 // 데이터 로드
@@ -406,8 +420,11 @@ function updateCharts(data) {
 
 // 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', () => {
-    initializeCharts();
-    loadDashboardData();
+    // 현재 페이지가 analytics-dashboard.html인 경우에만 차트 초기화
+    if (window.location.pathname.includes('analytics-dashboard.html')) {
+        initializeCharts();
+        loadDashboardData();
+    }
 
     // 필터 변경 이벤트
     ['date-from', 'date-to', 'page-filter'].forEach(id => {
