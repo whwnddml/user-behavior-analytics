@@ -236,10 +236,181 @@ window.addEventListener('beforeunload', () => {
 // 주기적으로 데이터 전송 (5분마다)
 setInterval(sendAnalytics, 5 * 60 * 1000);
 
-// 초기화
+// API 기본 URL 설정
+const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
+    ? 'https://user-behavior-analytics.onrender.com'
+    : '';
+
+// 차트 객체 저장소
+let charts = {
+    areaChart: null,
+    deviceChart: null,
+    timeChart: null
+};
+
+// 에러 표시
+function showError(message) {
+    const errorDiv = document.getElementById('error-message');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
+}
+
+// 차트 데이터 없음 표시
+function showNoData(chartId) {
+    const container = document.getElementById(chartId).parentElement;
+    const noDataDiv = document.createElement('div');
+    noDataDiv.className = 'no-data';
+    noDataDiv.textContent = '데이터가 없습니다';
+    container.appendChild(noDataDiv);
+}
+
+// 차트 초기화
+function initializeCharts() {
+    // 기존 차트 정리
+    Object.values(charts).forEach(chart => {
+        if (chart) chart.destroy();
+    });
+
+    // 영역별 체류시간 차트
+    charts.areaChart = new Chart(document.getElementById('areaChart'), {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '평균 체류시간 (초)',
+                data: [],
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '영역별 평균 체류시간'
+                }
+            }
+        }
+    });
+
+    // 디바이스별 통계 차트
+    charts.deviceChart = new Chart(document.getElementById('deviceChart'), {
+        type: 'pie',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(255, 206, 86, 0.5)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '디바이스별 사용자 분포'
+                }
+            }
+        }
+    });
+
+    // 시간대별 활동 차트
+    charts.timeChart = new Chart(document.getElementById('timeChart'), {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 24}, (_, i) => `${i}시`),
+            datasets: [{
+                label: '활동량',
+                data: [],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '시간대별 활동량'
+                }
+            }
+        }
+    });
+}
+
+// 데이터 로드
+async function loadDashboardData() {
+    try {
+        const dateFrom = document.getElementById('date-from').value;
+        const dateTo = document.getElementById('date-to').value;
+        const page = document.getElementById('page-filter').value;
+
+        // API 호출
+        const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats?${new URLSearchParams({
+            dateFrom,
+            dateTo,
+            page
+        })}`);
+
+        if (!response.ok) throw new Error('API 요청 실패');
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message);
+
+        updateCharts(result.data);
+    } catch (error) {
+        console.error('데이터 로드 실패:', error);
+        showError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
+    }
+}
+
+// 차트 업데이트
+function updateCharts(data) {
+    // 데이터가 없는 경우 처리
+    if (!data || Object.keys(data).length === 0) {
+        showNoData('areaChart');
+        showNoData('deviceChart');
+        showNoData('timeChart');
+        return;
+    }
+
+    // 영역별 체류시간
+    if (data.areaStats) {
+        charts.areaChart.data.labels = data.areaStats.map(stat => stat.areaName);
+        charts.areaChart.data.datasets[0].data = data.areaStats.map(stat => stat.avgTimeSpent);
+        charts.areaChart.update();
+    }
+
+    // 디바이스별 통계
+    if (data.deviceStats) {
+        charts.deviceChart.data.labels = data.deviceStats.map(stat => stat.deviceType);
+        charts.deviceChart.data.datasets[0].data = data.deviceStats.map(stat => stat.sessionCount);
+        charts.deviceChart.update();
+    }
+
+    // 시간대별 활동
+    if (data.hourlyStats) {
+        charts.timeChart.data.datasets[0].data = data.hourlyStats.map(stat => stat.sessionCount);
+        charts.timeChart.update();
+    }
+}
+
+// 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', () => {
-    initAreaEngagement();
-    initScrollTracking();
-    initInteractionTracking();
-    initFormAnalytics();
+    initializeCharts();
+    loadDashboardData();
+
+    // 필터 변경 이벤트
+    ['date-from', 'date-to', 'page-filter'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', loadDashboardData);
+    });
 }); 

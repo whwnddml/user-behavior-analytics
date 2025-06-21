@@ -56,6 +56,29 @@
     </style>
 </head>
 <body>
+    <!-- 네비게이션 바 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">사용자 행동 분석</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">상세 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="simple-dashboard.html">간단한 대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="test-frontend.html">테스트 페이지</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
         <h1>📊 사용자 행동 분석 대시보드</h1>
         <p class="lead">수집된 데이터를 확인하고 분석할 수 있는 간단한 대시보드입니다.</p>
@@ -96,84 +119,10 @@
         </div>
     </div>
 
-    <script>
-        // API 기본 URL 설정
-        const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
-            ? 'https://user-behavior-analytics.onrender.com'
-            : '';
-
-        // 상태 메시지 표시
-        function showStatus(message, isError = false) {
-            const status = document.getElementById('status-message');
-            status.textContent = message;
-            status.className = isError ? 'error' : 'success';
-        }
-
-        // 데이터 새로고침
-        async function refreshData() {
-            try {
-                showStatus('데이터를 불러오는 중...');
-                
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats`);
-                if (!response.ok) throw new Error('API 요청 실패');
-                
-                const result = await response.json();
-                if (!result.success) throw new Error(result.message);
-
-                // 통계 업데이트
-                document.getElementById('total-sessions').textContent = result.data.totalSessions || 0;
-                document.getElementById('total-pageviews').textContent = result.data.totalPageviews || 0;
-                document.getElementById('total-interactions').textContent = result.data.totalInteractions || 0;
-                document.getElementById('avg-session-time').textContent = 
-                    ((result.data.avgSessionTime || 0) / 1000).toFixed(1);
-
-                // 마지막 업데이트 시간
-                document.getElementById('last-updated').textContent = 
-                    `마지막 업데이트: ${new Date().toLocaleString()}`;
-
-                showStatus('데이터가 성공적으로 업데이트되었습니다.');
-            } catch (error) {
-                console.error('데이터 새로고침 중 오류:', error);
-                showStatus(`데이터 새로고침 실패: ${error.message}`, true);
-            }
-        }
-
-        // API 테스트
-        async function testAllAPIs() {
-            try {
-                showStatus('API 테스트 중...');
-                
-                const endpoints = [
-                    '/api/health',
-                    '/api/analytics/dashboard-stats',
-                    '/api/analytics/sessions'
-                ];
-
-                const results = await Promise.all(endpoints.map(async endpoint => {
-                    try {
-                        const response = await fetch(`${API_BASE_URL}${endpoint}`);
-                        const data = await response.json();
-                        return { endpoint, status: response.status, data };
-                    } catch (error) {
-                        return { endpoint, error: error.message };
-                    }
-                }));
-
-                document.getElementById('api-response').textContent = 
-                    JSON.stringify(results, null, 2);
-
-                showStatus('API 테스트가 완료되었습니다.');
-            } catch (error) {
-                console.error('API 테스트 중 오류:', error);
-                showStatus(`API 테스트 실패: ${error.message}`, true);
-            }
-        }
-
-        // 초기 데이터 로드
-        document.addEventListener('DOMContentLoaded', refreshData);
-    </script>
-
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 분석 스크립트 -->
+    <script src="js/analytics.js"></script>
 </body>
 </html> 
