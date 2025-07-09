@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Analytics 예시 페이지</title>
+    <style>
+        .area {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .area:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 영역 -->
+    <div class="area" 
+         data-area-id="header" 
+         data-area-name="헤더 영역" 
+         data-area-type="header">
+        <h1>User Analytics 예시</h1>
+        <p>이 페이지는 사용자 행동 분석을 위한 예시입니다.</p>
+    </div>
+
+    <!-- 메인 콘텐츠 영역 -->
+    <div class="area" 
+         data-area-id="main-content" 
+         data-area-name="메인 콘텐츠" 
+         data-area-type="content">
+        <h2>메인 콘텐츠</h2>
+        <p>이 영역에서 사용자의 체류 시간과 상호작용을 추적합니다.</p>
+        <button onclick="alert('클릭 이벤트가 추적됩니다!')">클릭해보세요</button>
+    </div>
+
+    <!-- 사이드바 영역 -->
+    <div class="area" 
+         data-area-id="sidebar" 
+         data-area-name="사이드바" 
+         data-area-type="navigation">
+        <h3>사이드바</h3>
+        <ul>
+            <li><a href="#section1">섹션 1</a></li>
+            <li><a href="#section2">섹션 2</a></li>
+            <li><a href="#section3">섹션 3</a></li>
+        </ul>
+    </div>
+
+    <!-- 푸터 영역 -->
+    <div class="area" 
+         data-area-id="footer" 
+         data-area-name="푸터 영역" 
+         data-area-type="footer">
+        <p>© 2024 User Analytics Example</p>
+    </div>
+
+    <!-- User Analytics 스크립트 포함 -->
+    <script src="js/user-analytics.js"></script>
+    <script>
+        // UserAnalytics 초기화 (선택적 설정)
+        const analytics = new UserAnalytics({
+            debug: true, // 개발 중에는 디버그 모드 활성화
+            sendInterval: 30000, // 30초마다 데이터 전송
+            enableHeatmap: true,
+            enableScrollTracking: true,
+            enableFormTracking: true
+        });
+    </script>
+</body>
+</html> 

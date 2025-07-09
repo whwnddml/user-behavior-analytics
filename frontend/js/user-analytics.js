@@ -7,12 +7,9 @@ class UserAnalytics {
     constructor(config = {}) {
         // 기본 설정
         const hostname = window.location.hostname;
-        const isProd = hostname.includes('github.io');
-        
-        // API 엔드포인트 설정
-        const defaultApiEndpoint = isProd 
-            ? 'https://user-behavior-analytics.onrender.com/api/analytics'
-            : 'http://localhost:3000/api/analytics';
+        const defaultApiEndpoint = hostname === 'localhost' || hostname === '127.0.0.1'
+            ? 'http://localhost:3000/api/analytics'
+            : 'https://user-behavior-analytics.onrender.com/api/analytics';
 
         this.config = {
             apiEndpoint: config.apiEndpoint || defaultApiEndpoint,
@@ -29,7 +26,7 @@ class UserAnalytics {
         // 데이터 저장소
         this.analyticsData = {
             sessionId: this.generateSessionId(),
-            pageUrl: window.location.href,
+            pageUrl: window.location.pathname,  // href 대신 pathname 사용
             pageTitle: document.title,
             userAgent: navigator.userAgent,
             startTime: new Date(),
@@ -655,7 +652,7 @@ class UserAnalytics {
             // 전송할 데이터 준비
             const payload = {
                 sessionId: this.analyticsData.sessionId,
-                pageUrl: this.analyticsData.pageUrl,
+                pageUrl: new URL(this.analyticsData.pageUrl, window.location.origin).pathname,  // URL을 pathname으로 변환
                 pageTitle: this.analyticsData.pageTitle,
                 userAgent: this.analyticsData.userAgent,
                 startTime: toISOString(this.analyticsData.startTime),
@@ -701,6 +698,7 @@ class UserAnalytics {
                     type: interaction.type,
                     targetElement: interaction.targetElement,
                     timestamp: toISOString(interaction.timestamp),
+                    recordedAt: toISOString(interaction.timestamp),
                     areaId: interaction.areaId || null
                 })),
                 formAnalytics: (this.analyticsData.formAnalytics || []).map(form => ({
@@ -724,7 +722,11 @@ class UserAnalytics {
             // 마지막 전송된 payload 저장
             this.lastPayload = payload;
 
-            this.log('Processed payload:', payload);
+            this.log('Sending payload:', {
+                interactionMap: payload.interactionMap,
+                timestamp: payload.interactionMap[0]?.timestamp,
+                recordedAt: payload.interactionMap[0]?.recordedAt
+            });
 
             const response = await fetch(`${this.config.apiEndpoint}/collect`, {
                 method: 'POST',

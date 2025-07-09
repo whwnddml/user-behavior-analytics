@@ -24,11 +24,28 @@ app.set('trust proxy', 'uniquelocal');
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // origin이 undefined인 경우는 같은 도메인에서의 요청
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    if (!origin) {
       callback(null, true);
-    } else {
-      callback(new Error('CORS policy violation'));
+      return;
     }
+
+    // 정확히 일치하는 도메인 체크
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    // 와일드카드 도메인 체크
+    const wildcardDomains = ALLOWED_ORIGINS.filter(domain => domain.includes('*'));
+    for (const wildcardDomain of wildcardDomains) {
+      const regex = new RegExp('^' + wildcardDomain.replace('*', '[^.]+') + '$');
+      if (regex.test(origin)) {
+        callback(null, true);
+        return;
+      }
+    }
+
+    callback(new Error('CORS policy violation'));
   },
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type'],
@@ -63,13 +80,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 요청 로깅 미들웨어
 app.use((req, _res, next) => {
-  logger.info({
-    method: req.method,
-    url: req.url,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-  });
-  next();
+    const logData = {
+        method: req.method,
+        url: req.url,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        query: req.query,
+        body: req.method === 'POST' ? req.body : undefined
+    };
+
+    logger.info('Incoming request', logData);
+    next();
 });
 
 // 라우트 등록

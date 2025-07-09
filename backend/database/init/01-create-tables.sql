@@ -5,27 +5,17 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 세션 테이블
 CREATE TABLE IF NOT EXISTS sessions (
-    session_id VARCHAR(50) PRIMARY KEY,
-    visitor_id UUID DEFAULT uuid_generate_v4(),
-    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_time TIMESTAMP WITH TIME ZONE,
-    user_agent TEXT,
-    ip_address INET,
-    referrer TEXT,
-    landing_page TEXT,
-    device_type VARCHAR(20),
-    browser_name VARCHAR(50),
-    browser_version VARCHAR(20),
-    os_name VARCHAR(50),
-    os_version VARCHAR(20),
-    screen_resolution VARCHAR(20),
-    viewport_size VARCHAR(20),
-    language VARCHAR(10),
-    country VARCHAR(50),
-    region VARCHAR(50),
-    city VARCHAR(50),
-    timezone VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    session_id VARCHAR(255) PRIMARY KEY,
+    start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP,
+    user_id VARCHAR(255),
+    browser VARCHAR(100),
+    browser_version VARCHAR(50),
+    device_type VARCHAR(50),
+    os VARCHAR(100),
+    os_version VARCHAR(50),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 페이지뷰 테이블

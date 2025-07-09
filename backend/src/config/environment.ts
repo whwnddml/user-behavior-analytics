@@ -13,8 +13,8 @@ export const HOST = process.env['HOST'] || 'localhost';
 
 // CORS 설정
 export const ALLOWED_ORIGINS = isProduction
-    ? ['https://whwnddml.github.io']
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500'];
+    ? ['https://whwnddml.github.io', 'https://*.github.io', 'https://*.brandiup.com']
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://localhost:8080', 'null'];
 
 // 데이터베이스 설정
 export const DATABASE_URL = process.env['DATABASE_URL'];

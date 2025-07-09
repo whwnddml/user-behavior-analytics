@@ -61,9 +61,10 @@
                         <label for="page-filter" class="form-label">페이지</label>
                         <select id="page-filter" class="form-control">
                             <option value="">전체</option>
-                            <option value="index.html">메인 페이지</option>
-                            <option value="example-page.html">예시 페이지</option>
-                            <option value="test-frontend.html">테스트 페이지</option>
+                            <option value="/index.html">메인 페이지</option>
+                            <option value="/example-page.html">예시 페이지</option>
+                            <option value="/test-frontend.html">테스트 페이지</option>
+                            <option value="/static/html/skybab.html">스카이밥</option>
                         </select>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
@@ -195,9 +196,10 @@
     <!-- 분석 스크립트 -->
     <script>
         // API 기본 URL 설정
-        const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
-            ? 'https://user-behavior-analytics.onrender.com'
-            : '';
+        const hostname = window.location.hostname;
+        const API_BASE_URL = hostname === 'localhost' || hostname === '127.0.0.1'
+            ? 'http://localhost:3000'
+            : 'https://user-behavior-analytics.onrender.com';
 
         // 차트 객체 저장소
         let charts = {
@@ -353,80 +355,72 @@
         }
 
         // 차트 업데이트
-        function updateCharts(stats, deviceStats) {
+        function updateCharts(stats, deviceStatsArray) {
             try {
-                // 차트 초기화 확인
-                ensureChartsInitialized();
-
-                // 데이터 유효성 검사
-                if (!stats) {
-                    console.warn('통계 데이터가 없습니다.');
-                    stats = { areaStats: [], hourlyStats: [] };
-                }
-                
-                if (!deviceStats) {
-                    console.warn('디바이스 통계 데이터가 없습니다.');
-                    deviceStats = [];
-                }
-
-                // 모든 차트가 유효한지 확인
-                if (!charts.areaChart || !charts.deviceChart || !charts.browserChart || !charts.timeChart) {
-                    console.warn('일부 차트가 초기화되지 않았습니다. 차트를 다시 초기화합니다.');
-                    initializeCharts();
-                }
-
                 // 영역별 체류시간 차트 업데이트
-                const areaStats = Array.isArray(stats.areaStats) ? stats.areaStats : [];
                 if (charts.areaChart) {
-                    charts.areaChart.data.labels = areaStats.map(stat => (stat && stat.area_name) || '알 수 없음');
-                    charts.areaChart.data.datasets[0].data = areaStats.map(stat => (stat && stat.avg_time_spent) || 0);
+                    const areaData = {};
+                    
+                    stats.areaStats.forEach(stat => {
+                        if (stat) {
+                            const areaName = stat.area_name || 'unknown';
+                            const timeSpent = stat.avg_time_spent || 0;
+                            areaData[areaName] = timeSpent;
+                        }
+                    });
+
+                    const areaLabels = Object.keys(areaData);
+                    if (areaLabels.length > 0) {
+                        charts.areaChart.data.labels = areaLabels;
+                        charts.areaChart.data.datasets[0].data = Object.values(areaData);
+                    } else {
+                        charts.areaChart.data.labels = ['데이터 없음'];
+                        charts.areaChart.data.datasets[0].data = [0];
+                    }
+                    
                     charts.areaChart.update();
                 }
 
                 // 디바이스별 통계 차트 업데이트
-                const deviceStatsArray = Array.isArray(deviceStats) ? deviceStats : [];
                 if (charts.deviceChart && charts.browserChart) {
-                    if (deviceStatsArray.length > 0) {
-                        const deviceData = {};
-                        const browserData = {};
-                        
-                        deviceStatsArray.forEach(stat => {
-                            if (stat) {
-                                const deviceType = stat.device_type || 'unknown';
-                                const browserName = stat.browser_name || 'unknown';
-                                deviceData[deviceType] = (deviceData[deviceType] || 0) + (stat.session_count || 0);
-                                browserData[browserName] = (browserData[browserName] || 0) + (stat.session_count || 0);
-                            }
-                        });
+                    const deviceData = {};
+                    const browserData = {};
+                    
+                    deviceStatsArray.forEach(stat => {
+                        if (stat) {
+                            const deviceType = stat.device_type || 'unknown';
+                            const sessionCount = stat.session_count || 0;
+                            deviceData[deviceType] = (deviceData[deviceType] || 0) + sessionCount;
+                        }
+                    });
 
-                        // 디바이스 차트 업데이트
-                        charts.deviceChart.data.labels = Object.keys(deviceData);
-                        charts.deviceChart.data.datasets[0].data = Object.values(deviceData);
-                        charts.deviceChart.update();
+                    stats.browsers.forEach(stat => {
+                        if (stat) {
+                            const browserName = stat.browser || 'unknown';
+                            const sessionCount = stat.session_count || 0;
+                            browserData[browserName] = (browserData[browserName] || 0) + sessionCount;
+                        }
+                    });
 
-                        // 브라우저 차트 업데이트
-                        charts.browserChart.data.labels = Object.keys(browserData);
-                        charts.browserChart.data.datasets[0].data = Object.values(browserData);
-                        charts.browserChart.update();
-                    } else {
-                        // 데이터가 없는 경우 차트 초기화
-                        charts.deviceChart.data.labels = [];
-                        charts.deviceChart.data.datasets[0].data = [];
-                        charts.deviceChart.update();
-                        
-                        charts.browserChart.data.labels = [];
-                        charts.browserChart.data.datasets[0].data = [];
-                        charts.browserChart.update();
-                    }
+                    // 디바이스 차트 업데이트
+                    const deviceLabels = Object.keys(deviceData);
+                    charts.deviceChart.data.labels = deviceLabels.length > 0 ? deviceLabels : ['데이터 없음'];
+                    charts.deviceChart.data.datasets[0].data = deviceLabels.length > 0 ? Object.values(deviceData) : [0];
+                    charts.deviceChart.update();
+
+                    // 브라우저 차트 업데이트
+                    const browserLabels = Object.keys(browserData);
+                    charts.browserChart.data.labels = browserLabels.length > 0 ? browserLabels : ['데이터 없음'];
+                    charts.browserChart.data.datasets[0].data = browserLabels.length > 0 ? Object.values(browserData) : [0];
+                    charts.browserChart.update();
                 }
 
                 // 시간대별 활동 차트 업데이트
                 if (charts.timeChart) {
-                    const hourlyStats = Array.isArray(stats.hourlyStats) ? stats.hourlyStats : [];
                     const hours = Array.from({length: 24}, (_, i) => i);
                     const hourlyData = new Array(24).fill(0);
                     
-                    hourlyStats.forEach(stat => {
+                    stats.hourlyStats.forEach(stat => {
                         if (stat) {
                             const hour = parseInt(stat.hour);
                             if (!isNaN(hour) && hour >= 0 && hour < 24) {
@@ -443,13 +437,6 @@
             } catch (error) {
                 console.error('차트 업데이트 중 오류 발생:', error);
                 showError('차트 업데이트 중 오류가 발생했습니다.');
-                
-                // 에러 발생 시 차트 재초기화 시도
-                try {
-                    initializeCharts();
-                } catch (initError) {
-                    console.error('차트 재초기화 실패:', initError);
-                }
             }
         }
 
@@ -505,34 +492,34 @@
                 const dateTo = document.getElementById('date-to').value;
                 const page = document.getElementById('page-filter').value;
 
-                // 모든 필요한 통계 데이터 로드
-                const [dashboardStats, deviceStats, hourlyStats] = await Promise.all([
-                    fetchAPI('/dashboard/stats', { dateFrom, dateTo, page }),
-                    fetchAPI('/device-stats', { dateFrom, dateTo }),
-                    fetchAPI('/hourly-stats', { dateFrom, dateTo })
-                ]);
+                // 통계 데이터 로드
+                const dashboardStats = await fetchAPI('/dashboard/stats', { dateFrom, dateTo, page });
 
                 // API 응답 유효성 검사
-                if (!dashboardStats?.success || !deviceStats?.success || !hourlyStats?.success) {
-                    throw new Error('일부 데이터를 가져오는데 실패했습니다.');
+                if (!dashboardStats?.success) {
+                    throw new Error('데이터를 가져오는데 실패했습니다.');
                 }
 
+                const stats = dashboardStats.data;
+                console.log('Dashboard stats:', stats); // 디버깅용 로그
+
                 // 요약 통계 업데이트
-                const summary = dashboardStats?.data?.summary || {};
+                const overview = stats.overview || {};
                 document.getElementById('total-sessions').textContent = 
-                    formatNumber(summary.totalSessions || 0);
+                    formatNumber(overview.total_sessions || 0);
                 document.getElementById('total-pageviews').textContent = 
-                    formatNumber(summary.totalPageviews || 0);
+                    formatNumber(overview.total_pageviews || 0);
                 document.getElementById('total-interactions').textContent = 
-                    formatNumber(summary.totalInteractions || 0);
+                    formatNumber(overview.total_interactions || 0);
                 document.getElementById('avg-session-time').textContent = 
-                    formatNumber(summary.avgSessionTime?.value || 0, 1) + '분';
+                    formatNumber(overview.avg_session_time || 0, 1) + '분';
 
                 // 차트 업데이트
                 updateCharts({
-                    areaStats: dashboardStats?.data?.stats || [],
-                    hourlyStats: hourlyStats?.data || []
-                }, deviceStats?.data || []);
+                    areaStats: stats.areas || [],
+                    browsers: stats.browsers || [],
+                    hourlyStats: stats.hourly || []
+                }, stats.devices || []);
 
                 // 세션 테이블 업데이트
                 await loadSessionsTable();
@@ -542,7 +529,11 @@
                 showError('데이터 로드 중 오류가 발생했습니다: ' + error.message);
                 
                 // 에러 발생 시 차트 초기화
-                updateCharts({ areaStats: [], hourlyStats: [] }, []);
+                updateCharts({
+                    areaStats: [],
+                    browsers: [],
+                    hourlyStats: []
+                }, []);
             }
         }
 
@@ -561,13 +552,35 @@
 
         // Helper functions for API calls
         async function fetchAPI(path, params) {
-            const queryString = new URLSearchParams(params).toString();
-            const url = `${API_BASE_URL}/api/analytics${path}${queryString ? `?${queryString}` : ''}`;
+            // URL 인코딩 방지를 위해 page 파라미터는 별도 처리
+            const { page, ...otherParams } = params;
+            const queryParams = new URLSearchParams(otherParams);
+            
+            // page 파라미터가 있는 경우 pathname만 추출
+            if (page && page.trim() !== '') {
+                let pathname = page;
+                try {
+                    // URL인 경우 pathname 추출
+                    const url = new URL(page);
+                    pathname = url.pathname;
+                } catch (e) {
+                    // 이미 pathname인 경우 그대로 사용
+                    pathname = page.startsWith('/') ? page : `/${page}`;
+                }
+                queryParams.append('page', pathname);
+            }
+            
+            const url = `${API_BASE_URL}/api/analytics${path}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            console.log(`Fetching API: ${url}`);
+            
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`API 요청 실패: ${response.statusText}`);
             }
-            return response.json();
+            
+            const data = await response.json();
+            console.log(`API Response for ${path}:`, data);
+            return data;
         }
 
         function formatNumber(number, decimals = 0) {

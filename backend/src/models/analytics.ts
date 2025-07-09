@@ -13,44 +13,97 @@ import logger from '../config/logger';
 
 export class AnalyticsModel {
   // 세션 생성 또는 업데이트
-  static async createOrUpdateSession(sessionData: SessionData): Promise<void> {
-    const query = `
-      INSERT INTO sessions (
-        session_id, visitor_id, start_time, end_time, user_agent, ip_address,
-        referrer, landing_page, device_type, browser_name, browser_version,
-        os_name, os_version, screen_resolution, viewport_size, language,
-        country, region, city, timezone
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
-      )
-      ON CONFLICT (session_id) DO UPDATE SET
-        end_time = EXCLUDED.end_time
-    `;
+  static async createOrUpdateSession(sessionData: Partial<SessionData>): Promise<void> {
+    const { sessionId, ...updateData } = sessionData;
 
-    const values = [
-      sessionData.sessionId,
-      sessionData.visitorId,
-      sessionData.startTime,
-      sessionData.endTime,
-      sessionData.userAgent,
-      sessionData.ipAddress,
-      sessionData.referrer,
-      sessionData.landingPage,
-      sessionData.deviceType,
-      sessionData.browserName,
-      sessionData.browserVersion,
-      sessionData.osName,
-      sessionData.osVersion,
-      sessionData.screenResolution,
-      sessionData.viewportSize,
-      sessionData.language,
-      sessionData.country,
-      sessionData.region,
-      sessionData.city,
-      sessionData.timezone
-    ];
+    // 기존 세션 확인
+    const checkQuery = `SELECT session_id FROM sessions WHERE session_id = $1`;
+    const existingSession = await pool.query(checkQuery, [sessionId]);
+    
+    if (existingSession.rows.length === 0) {
+      // 새 세션 생성
+      const insertQuery = `
+        INSERT INTO sessions (
+          session_id, visitor_id, start_time, end_time, user_agent, ip_address,
+          referrer, landing_page, device_type, browser_name, browser_version,
+          os_name, os_version, screen_resolution, viewport_size, language,
+          country, region, city, timezone
+        ) VALUES (
+          $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+        )
+      `;
 
-    await pool.query(query, values);
+      const insertValues = [
+        sessionId,
+        updateData.visitorId,
+        updateData.endTime,
+        updateData.userAgent,
+        updateData.ipAddress,
+        updateData.referrer,
+        updateData.landingPage,
+        updateData.deviceType,
+        updateData.browserName,
+        updateData.browserVersion,
+        updateData.osName,
+        updateData.osVersion,
+        updateData.screenResolution,
+        updateData.viewportSize,
+        updateData.language,
+        updateData.country,
+        updateData.region,
+        updateData.city,
+        updateData.timezone
+      ];
+
+      await pool.query(insertQuery, insertValues);
+    } else {
+      // 기존 세션 업데이트
+      const updateQuery = `
+        UPDATE sessions 
+        SET
+          end_time = COALESCE($1, end_time),
+          user_agent = COALESCE($2, user_agent),
+          ip_address = COALESCE($3, ip_address),
+          referrer = COALESCE($4, referrer),
+          landing_page = COALESCE($5, landing_page),
+          device_type = COALESCE($6, device_type),
+          browser_name = COALESCE($7, browser_name),
+          browser_version = COALESCE($8, browser_version),
+          os_name = COALESCE($9, os_name),
+          os_version = COALESCE($10, os_version),
+          screen_resolution = COALESCE($11, screen_resolution),
+          viewport_size = COALESCE($12, viewport_size),
+          language = COALESCE($13, language),
+          country = COALESCE($14, country),
+          region = COALESCE($15, region),
+          city = COALESCE($16, city),
+          timezone = COALESCE($17, timezone)
+        WHERE session_id = $18
+      `;
+
+      const updateValues = [
+        updateData.endTime,
+        updateData.userAgent,
+        updateData.ipAddress,
+        updateData.referrer,
+        updateData.landingPage,
+        updateData.deviceType,
+        updateData.browserName,
+        updateData.browserVersion,
+        updateData.osName,
+        updateData.osVersion,
+        updateData.screenResolution,
+        updateData.viewportSize,
+        updateData.language,
+        updateData.country,
+        updateData.region,
+        updateData.city,
+        updateData.timezone,
+        sessionId
+      ];
+
+      await pool.query(updateQuery, updateValues);
+    }
   }
 
   // 페이지뷰 생성
@@ -191,6 +244,11 @@ export class AnalyticsModel {
       await client.query('BEGIN');
       
       for (const interaction of interactions) {
+        logger.info('Inserting interaction:', {
+          interaction,
+          recordedAt: interaction.recordedAt
+        });
+
         const values = [
           interaction.pageviewId,
           interaction.areaId,
@@ -205,6 +263,7 @@ export class AnalyticsModel {
       
       await client.query('COMMIT');
     } catch (error) {
+      logger.error('Error inserting interaction:', error);
       await client.query('ROLLBACK');
       throw error;
     } finally {
@@ -276,72 +335,252 @@ export class AnalyticsModel {
 
     const dateFilter: string[] = [];
     if (dateFrom) {
-      dateFilter.push(`s.start_time >= $${paramIndex}`);
+      dateFilter.push(`s.start_time >= ($${paramIndex}::date + interval '0 hour')`);
       values.push(dateFrom);
       paramIndex++;
     }
     if (dateTo) {
-      dateFilter.push(`s.start_time <= $${paramIndex}`);
+      dateFilter.push(`s.start_time <= ($${paramIndex}::date + interval '23 hours 59 minutes 59 seconds')`);
       values.push(dateTo);
       paramIndex++;
     }
 
-    const pageFilter = page ? [`pv.page_url LIKE '%' || $${paramIndex} || '%'`] : [];
-    if (page) {
-      values.push(page);
+    const pageFilter: string[] = [];
+    if (page && typeof page === 'string') {
+      const normalizedPage = page.startsWith('/') ? page : `/${page}`;
+      pageFilter.push(`pv.page_url = $${paramIndex}`);
+      values.push(normalizedPage);
       paramIndex++;
     }
 
-    const whereClause = [...dateFilter, ...pageFilter].length > 0
-      ? 'WHERE ' + [...dateFilter, ...pageFilter].join(' AND ')
-      : '';
+    // 쿼리 실행 전 로깅
+    logger.info('Building dashboard stats query', {
+      filters: {
+        dateFrom: dateFrom || 'not specified',
+        dateTo: dateTo || 'not specified',
+        page: page || 'all pages'
+      },
+      conditions: {
+        dateFilter: dateFilter.length > 0 ? dateFilter.join(' AND ') : 'none',
+        pageFilter: pageFilter.length > 0 ? pageFilter.join(' AND ') : 'none'
+      }
+    });
 
-    // 전체 통계 쿼리
     const statsQuery = `
-      WITH session_stats AS (
+      WITH filtered_pageviews AS (
+        SELECT pv.*
+        FROM pageviews pv
+        WHERE 1=1
+        ${pageFilter.length > 0 ? 'AND ' + pageFilter.join(' AND ') : ''}
+      ),
+      filtered_sessions AS (
+        SELECT DISTINCT s.*
+        FROM sessions s
+        ${page ? 'INNER' : 'LEFT'} JOIN filtered_pageviews pv ON s.session_id = pv.session_id
+        WHERE 1=1
+        ${dateFilter.length > 0 ? 'AND ' + dateFilter.join(' AND ') : ''}
+      ),
+      session_stats AS (
         SELECT 
-          COUNT(DISTINCT s.session_id) as total_sessions,
+          COUNT(DISTINCT fs.session_id) as total_sessions,
           COUNT(DISTINCT pv.pageview_id) as total_pageviews,
           COUNT(DISTINCT i.interaction_id) as total_interactions,
           ROUND(
             EXTRACT(EPOCH FROM AVG(
               CASE 
-                WHEN s.end_time IS NULL THEN NOW() - s.start_time
-                ELSE s.end_time - s.start_time 
+                WHEN fs.end_time IS NULL THEN NOW() - fs.start_time
+                ELSE fs.end_time - fs.start_time 
               END
             )) / 60
           , 1) as avg_session_time
-        FROM sessions s
-        LEFT JOIN pageviews pv ON s.session_id = pv.session_id
+        FROM filtered_sessions fs
+        LEFT JOIN filtered_pageviews pv ON fs.session_id = pv.session_id
         LEFT JOIN interactions i ON pv.pageview_id = i.pageview_id
-        ${whereClause}
       ),
       area_stats AS (
         SELECT 
-          ae.area_id,
-          ae.area_name,
-          AVG(ae.time_spent) as avg_time_spent,
+          COALESCE(ae.area_id, 'unknown') as area_id,
+          COALESCE(ae.area_name, '알 수 없음') as area_name,
+          COALESCE(AVG(ae.time_spent), 0) as avg_time_spent,
           COUNT(DISTINCT pv.session_id) as visitor_count,
-          SUM(ae.interaction_count) as total_interactions
-        FROM area_engagements ae
-        JOIN pageviews pv ON ae.pageview_id = pv.pageview_id
-        JOIN sessions s ON pv.session_id = s.session_id
-        ${whereClause}
+          COALESCE(SUM(ae.interaction_count), 0) as total_interactions
+        FROM filtered_sessions fs
+        JOIN filtered_pageviews pv ON fs.session_id = pv.session_id
+        LEFT JOIN area_engagements ae ON pv.pageview_id = ae.pageview_id
         GROUP BY ae.area_id, ae.area_name
+      ),
+      device_stats AS (
+        SELECT 
+          COALESCE(s.device_type, 'unknown') as device_type,
+          COUNT(DISTINCT s.session_id) as session_count,
+          COUNT(DISTINCT pv.pageview_id) as pageview_count
+        FROM filtered_sessions s
+        LEFT JOIN filtered_pageviews pv ON s.session_id = pv.session_id
+        GROUP BY s.device_type
+      ),
+      browser_stats AS (
+        SELECT 
+          COALESCE(s.browser_name, 'unknown') as browser,
+          COALESCE(s.browser_version, '') as version,
+          COUNT(DISTINCT s.session_id) as session_count,
+          COUNT(DISTINCT pv.pageview_id) as pageview_count
+        FROM filtered_sessions s
+        LEFT JOIN filtered_pageviews pv ON s.session_id = pv.session_id
+        GROUP BY s.browser_name, s.browser_version
+      ),
+      os_stats AS (
+        SELECT 
+          COALESCE(s.os_name, 'unknown') as os,
+          COALESCE(s.os_version, '') as version,
+          COUNT(DISTINCT s.session_id) as session_count,
+          COUNT(DISTINCT pv.pageview_id) as pageview_count
+        FROM filtered_sessions s
+        LEFT JOIN filtered_pageviews pv ON s.session_id = pv.session_id
+        GROUP BY s.os_name, s.os_version
+      ),
+      location_stats AS (
+        SELECT 
+          COALESCE(s.country, 'unknown') as country,
+          COALESCE(s.region, 'unknown') as region,
+          COALESCE(s.city, 'unknown') as city,
+          COUNT(DISTINCT s.session_id) as session_count,
+          COUNT(DISTINCT pv.pageview_id) as pageview_count
+        FROM filtered_sessions s
+        LEFT JOIN filtered_pageviews pv ON s.session_id = pv.session_id
+        GROUP BY s.country, s.region, s.city
+      ),
+      hourly_stats AS (
+        SELECT 
+          EXTRACT(HOUR FROM s.start_time) as hour,
+          COUNT(DISTINCT s.session_id) as session_count,
+          COUNT(DISTINCT pv.pageview_id) as pageview_count
+        FROM filtered_sessions s
+        LEFT JOIN filtered_pageviews pv ON s.session_id = pv.session_id
+        GROUP BY EXTRACT(HOUR FROM s.start_time)
+        ORDER BY hour
       )
-      SELECT 
-        a.*,
-        s.total_sessions,
-        s.total_pageviews,
-        s.total_interactions as total_session_interactions,
-        s.avg_session_time
-      FROM area_stats a
-      CROSS JOIN session_stats s
-      ORDER BY a.avg_time_spent DESC
+      SELECT json_build_object(
+        'overview', (
+          SELECT json_build_object(
+            'total_sessions', total_sessions,
+            'total_pageviews', total_pageviews,
+            'total_interactions', total_interactions,
+            'avg_session_time', avg_session_time
+          ) FROM session_stats
+        ),
+        'areas', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'area_id', area_id,
+                'area_name', area_name,
+                'avg_time_spent', avg_time_spent,
+                'visitor_count', visitor_count,
+                'total_interactions', total_interactions
+              )
+            ),
+            '[]'::json
+          ) FROM area_stats
+        ),
+        'devices', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'device_type', device_type,
+                'session_count', session_count,
+                'pageview_count', pageview_count
+              )
+            ),
+            '[]'::json
+          ) FROM device_stats
+        ),
+        'browsers', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'browser', browser,
+                'version', version,
+                'session_count', session_count,
+                'pageview_count', pageview_count
+              )
+            ),
+            '[]'::json
+          ) FROM browser_stats
+        ),
+        'os', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'os', os,
+                'version', version,
+                'session_count', session_count,
+                'pageview_count', pageview_count
+              )
+            ),
+            '[]'::json
+          ) FROM os_stats
+        ),
+        'locations', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'country', country,
+                'region', region,
+                'city', city,
+                'session_count', session_count,
+                'pageview_count', pageview_count
+              )
+            ),
+            '[]'::json
+          ) FROM location_stats
+        ),
+        'hourly', (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'hour', hour,
+                'session_count', session_count,
+                'pageview_count', pageview_count
+              ) ORDER BY hour
+            ),
+            '[]'::json
+          ) FROM hourly_stats
+        )
+      ) as stats
     `;
 
-    const result = await pool.query(statsQuery, values);
-    return result.rows;
+    try {
+      const result = await pool.query(statsQuery, values);
+      const stats = result.rows[0]?.stats;
+
+      if (!stats) {
+        logger.warn('No stats data found in query result', {
+          filters: { dateFrom, dateTo, page }
+        });
+        return null;
+      }
+
+      // 결과 로깅
+      logger.info('Query executed successfully', {
+        overview: stats.overview,
+        counts: {
+          areas: stats.areas?.length || 0,
+          devices: stats.devices?.length || 0,
+          browsers: stats.browsers?.length || 0,
+          os: stats.os?.length || 0,
+          locations: stats.locations?.length || 0,
+          hourly: stats.hourly?.length || 0
+        }
+      });
+
+      return stats;
+    } catch (error) {
+      logger.error('Failed to execute dashboard stats query', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        filters: { dateFrom, dateTo, page }
+      });
+      throw error;
+    }
   }
 
   // 세션 목록 조회
@@ -356,11 +595,9 @@ export class AnalyticsModel {
         s.landing_page,
         COUNT(p.pageview_id) as pageviews,
         COALESCE(AVG(p.load_time), 0) as avg_load_time,
-        COALESCE(MAX(sm.deepest_scroll), 0) as max_scroll_depth,
         COUNT(i.interaction_id) as total_interactions
       FROM sessions s
       LEFT JOIN pageviews p ON s.session_id = p.session_id
-      LEFT JOIN scroll_metrics sm ON p.pageview_id = sm.pageview_id
       LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
       GROUP BY s.session_id, s.start_time, s.end_time, s.device_type, s.browser_name, s.landing_page
       ORDER BY s.start_time DESC
@@ -371,32 +608,26 @@ export class AnalyticsModel {
     return result.rows;
   }
 
-  // 특정 세션 상세 정보
-  static async getSessionDetail(sessionId: string | undefined): Promise<any | null> {
-    if (!sessionId) return null;
-
+  // 세션 상세 정보 조회
+  static async getSessionDetails(sessionId: string): Promise<any> {
     const sessionQuery = `
       SELECT * FROM sessions WHERE session_id = $1
     `;
-    
+
     const pageviewsQuery = `
-      SELECT p.*, sm.deepest_scroll, sm.scroll_25_time, sm.scroll_50_time, sm.scroll_75_time, sm.scroll_100_time
-      FROM pageviews p
-      LEFT JOIN scroll_metrics sm ON p.pageview_id = sm.pageview_id
-      WHERE p.session_id = $1
-      ORDER BY p.start_time
+      SELECT * FROM pageviews WHERE session_id = $1 ORDER BY created_at
     `;
 
     const areaEngagementsQuery = `
-      SELECT ae.*
+      SELECT ae.* 
       FROM area_engagements ae
       JOIN pageviews p ON ae.pageview_id = p.pageview_id
       WHERE p.session_id = $1
-      ORDER BY ae.time_spent DESC
+      ORDER BY ae.created_at
     `;
 
     const interactionsQuery = `
-      SELECT i.*
+      SELECT i.* 
       FROM interactions i
       JOIN pageviews p ON i.pageview_id = p.pageview_id
       WHERE p.session_id = $1
@@ -526,4 +757,4 @@ export class AnalyticsModel {
     const result = await pool.query(query, params);
     return result.rows;
   }
-} 
+}

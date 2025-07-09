@@ -43,16 +43,17 @@ router.post('/collect', validateBody(analyticsDataSchema), async (req: Request, 
       sessionId: clientData.sessionId,
       pageUrl: clientData.pageUrl,
       userAgent: clientData.userAgent,
-      ip: clientIP
+      ip: clientIP,
+      interactionSample: clientData.interactionMap[0],
+      interactionCount: clientData.interactionMap.length
     });
 
     // 1. 세션 데이터 생성/업데이트
-    const sessionData: SessionData = {
+    const sessionData: Partial<SessionData> = {
       sessionId: clientData.sessionId,
-      startTime: new Date(),
       userAgent: clientData.userAgent,
       ipAddress: clientIP,
-      landingPage: clientData.pageUrl,
+      landingPage: clientData.pageUrl.startsWith('/') ? clientData.pageUrl : `/${clientData.pageUrl}`,  // pathname 형식으로 저장
       deviceType: userAgentInfo.deviceType as 'mobile' | 'tablet' | 'desktop',
       browserName: userAgentInfo.browserName || 'Unknown',
       browserVersion: userAgentInfo.browserVersion || 'Unknown',
@@ -63,12 +64,35 @@ router.post('/collect', validateBody(analyticsDataSchema), async (req: Request, 
       language: 'Unknown' // 클라이언트에서 전송되도록 수정 필요
     };
 
-    await AnalyticsModel.createOrUpdateSession(sessionData);
+    // 새 세션인 경우에만 시작 시간 설정
+    const existingSession = await AnalyticsModel.getSessionDetails(clientData.sessionId);
+    if (!existingSession) {
+      sessionData.startTime = new Date();
+    }
+
+    await AnalyticsModel.createOrUpdateSession(sessionData as SessionData);
 
     // 2. 페이지뷰 데이터 생성
+    // URL 정규화: pathname 형식으로 통일
+    let normalizedPath = clientData.pageUrl;
+    
+    // 전체 URL인 경우 pathname 추출
+    if (clientData.pageUrl.startsWith('http')) {
+      try {
+        const pageUrl = new URL(clientData.pageUrl);
+        normalizedPath = pageUrl.pathname;
+      } catch (error) {
+        logger.error('Error parsing URL:', error);
+        // URL 파싱 실패 시 원래 값 사용
+      }
+    }
+    
+    // pathname이 /로 시작하지 않으면 추가
+    normalizedPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+
     const pageviewData: PageviewData = {
       sessionId: clientData.sessionId,
-      pageUrl: clientData.pageUrl,
+      pageUrl: normalizedPath,
       ...(clientData.pageTitle && { pageTitle: clientData.pageTitle }),
       ...(clientData.performance?.loadTime && { loadTime: clientData.performance.loadTime }),
       ...(clientData.performance?.domContentLoaded && { domContentLoaded: clientData.performance.domContentLoaded }),
@@ -193,14 +217,12 @@ router.post('/collect', validateBody(analyticsDataSchema), async (req: Request, 
     res.status(201).json(response);
 
   } catch (error) {
-    logger.error('Error processing analytics data:', error);
-    
+    logger.error('Error creating pageview data:', error);
     const errorResponse: ApiResponse = {
       success: false,
       message: 'Failed to process analytics data',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
-    
     res.status(500).json(errorResponse);
   }
 });
@@ -256,41 +278,84 @@ router.post('/session/end', async (req: Request, res: Response) => {
 
 // 대시보드 통계 API
 router.get('/dashboard/stats', async (req: Request, res: Response) => {
-  try {
     const { dateFrom, dateTo, page } = req.query;
     
-    const stats = await AnalyticsModel.getDashboardStats(
-      dateFrom ? String(dateFrom) : undefined,
-      dateTo ? String(dateTo) : undefined,
-      page ? String(page) : undefined
-    );
+    try {
+        logger.info('Dashboard stats requested', {
+            dateFrom: dateFrom || 'not specified',
+            dateTo: dateTo || 'not specified',
+            page: page || 'all pages'
+        });
 
-    const response: ApiResponse = {
-      success: true,
-      message: '대시보드 통계를 성공적으로 조회했습니다.',
-      data: {
-        stats,
-        summary: {
-          totalSessions: stats[0]?.total_sessions || 0,
-          totalPageviews: stats[0]?.total_pageviews || 0,
-          totalInteractions: stats[0]?.total_session_interactions || 0,
-          avgSessionTime: {
-            value: stats[0]?.avg_session_time || 0,
-            unit: 'minutes'
-          }
+        const stats = await AnalyticsModel.getDashboardStats(
+            dateFrom as string,
+            dateTo as string,
+            page as string
+        );
+
+        // 데이터가 없는 경우 기본값 설정
+        if (!stats) {
+            logger.info('No stats data found', {
+                dateFrom,
+                dateTo,
+                page
+            });
+
+            return res.json({
+                success: true,
+                data: {
+                    overview: {
+                        total_sessions: 0,
+                        total_pageviews: 0,
+                        total_interactions: 0,
+                        avg_session_time: 0
+                    },
+                    areas: [],
+                    devices: [],
+                    browsers: [],
+                    os: [],
+                    locations: [],
+                    hourly: []
+                }
+            });
         }
-      }
-    };
 
-    return res.json(response);
-  } catch (error) {
-    logger.error('Error fetching dashboard stats:', error);
-    return res.status(500).json({
-      success: false,
-      message: '대시보드 통계 조회 실패',
-      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
-    });
-  }
+        // 상세 로깅
+        logger.info('Stats data retrieved', {
+            overview: {
+                total_sessions: stats.overview?.total_sessions || 0,
+                total_pageviews: stats.overview?.total_pageviews || 0,
+                total_interactions: stats.overview?.total_interactions || 0,
+                avg_session_time: stats.overview?.avg_session_time || 0
+            },
+            counts: {
+                areas: stats.areas?.length || 0,
+                devices: stats.devices?.length || 0,
+                browsers: stats.browsers?.length || 0,
+                os: stats.os?.length || 0,
+                locations: stats.locations?.length || 0,
+                hourly: stats.hourly?.length || 0
+            }
+        });
+
+        return res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        logger.error('Error fetching dashboard stats:', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            dateFrom: dateFrom || 'not specified',
+            dateTo: dateTo || 'not specified',
+            page: page || 'all pages'
+        });
+        
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch dashboard stats',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
 });
 
 // 세션 목록 API
@@ -322,7 +387,14 @@ router.get('/dashboard/sessions', async (req: Request, res: Response) => {
 router.get('/sessions/:sessionId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { sessionId } = req.params;
-    const sessionDetail = await AnalyticsModel.getSessionDetail(sessionId);
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session ID is required'
+      });
+    }
+
+    const sessionDetail = await AnalyticsModel.getSessionDetails(sessionId);
 
     if (!sessionDetail) {
       return res.status(404).json({
