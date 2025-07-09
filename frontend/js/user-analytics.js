@@ -72,6 +72,78 @@ class UserAnalytics {
     }
 
     /**
+     * 팝업 관련 이벤트 초기화
+     */
+    initPopupTracking() {
+        const popupElements = document.querySelectorAll('.popup-coupon');
+        
+        popupElements.forEach(popup => {
+            // 팝업 표시 상태 변경 감지
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'style') {
+                        const isVisible = popup.style.display !== 'none';
+                        if (isVisible) {
+                            // 팝업이 열릴 때 하단 영역의 타이머 일시 중지
+                            this.pauseBackgroundAreas();
+                        } else {
+                            // 팝업이 닫힐 때 하단 영역의 타이머 재개
+                            this.resumeBackgroundAreas();
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(popup, { attributes: true });
+        });
+    }
+
+    /**
+     * 하단 영역 타이머 일시 중지
+     */
+    pauseBackgroundAreas() {
+        const popupArea = document.querySelector('.popup-coupon');
+        if (!popupArea) return;
+
+        // 모든 영역의 타이머를 일시 중지
+        this.analyticsData.areaEngagements.forEach(area => {
+            if (area.areaId !== 'popup-coupon') {
+                const areaTimer = this.trackingState.areaTimers.get(area.areaId);
+                if (areaTimer) {
+                    clearInterval(areaTimer);
+                    this.trackingState.areaTimers.delete(area.areaId);
+                }
+            }
+        });
+
+        this.log('Background area timers paused due to popup');
+    }
+
+    /**
+     * 하단 영역 타이머 재개
+     */
+    resumeBackgroundAreas() {
+        // 모든 영역에 대해 타이머 재시작
+        const areas = document.querySelectorAll('.area[data-area-id]');
+        areas.forEach(area => {
+            const areaId = area.dataset.areaId;
+            if (areaId !== 'popup-coupon') {
+                // 이미 실행 중인 타이머가 있다면 제거
+                const existingTimer = this.trackingState.areaTimers.get(areaId);
+                if (existingTimer) {
+                    clearInterval(existingTimer);
+                }
+
+                // 새로운 타이머 시작
+                const timer = setInterval(() => this.updateActiveAreaTimers(), 1000);
+                this.trackingState.areaTimers.set(areaId, timer);
+            }
+        });
+
+        this.log('Background area timers resumed');
+    }
+
+    /**
      * 초기화
      */
     init() {
@@ -85,6 +157,9 @@ class UserAnalytics {
         } else {
             this.startTracking();
         }
+
+        // 팝업 추적 초기화 추가
+        this.initPopupTracking();
 
         this.trackingState.isInitialized = true;
     }

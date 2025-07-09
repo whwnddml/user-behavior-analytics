@@ -201,7 +201,7 @@
             ? 'http://localhost:3000'
             : 'https://user-behavior-analytics.onrender.com';
 
-        // 차트 객체 저장소
+        // 전역 차트 객체
         let charts = {
             areaChart: null,
             deviceChart: null,
@@ -209,52 +209,55 @@
             timeChart: null
         };
 
-        // 차트 초기화 여부 확인
-        function ensureChartsInitialized() {
-            const chartIds = ['areaChart', 'deviceChart', 'browserChart', 'timeChart'];
-            const needsInitialization = chartIds.some(id => !charts[id]);
-            
-            if (needsInitialization) {
-                initializeCharts();
-            }
-        }
-
-        // 에러 표시
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        // 차트 초기화
+        // 차트 초기화 함수
         function initializeCharts() {
-            // 기존 차트 제거
-            Object.keys(charts).forEach(key => {
-                if (charts[key]) {
-                    charts[key].destroy();
-                }
-            });
-
             // 영역별 체류시간 차트
             const areaCtx = document.getElementById('areaChart').getContext('2d');
             charts.areaChart = new Chart(areaCtx, {
                 type: 'bar',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: '평균 체류시간 (초)',
-                        data: [],
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
+                    datasets: [
+                        {
+                            label: '방문자 수',
+                            data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '평균 체류시간(초)',
+                            data: [],
+                            type: 'line',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            fill: false,
+                            yAxisID: 'y1'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     scales: {
                         y: {
-                            beginAtZero: true
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '방문자 수'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '평균 체류시간(초)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
                         }
                     }
                 }
@@ -283,7 +286,6 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             position: 'bottom'
@@ -319,7 +321,6 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             position: 'bottom'
@@ -328,30 +329,71 @@
                 }
             });
 
-            // 시간대별 활동 차트
+            // 시간대별 통계 차트
             const timeCtx = document.getElementById('timeChart').getContext('2d');
             charts.timeChart = new Chart(timeCtx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: '세션 수',
-                        data: [],
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        tension: 0.1
-                    }]
+                    datasets: [
+                        {
+                            label: '세션 수',
+                            data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '평균 체류시간(초)',
+                            data: [],
+                            type: 'line',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            fill: false,
+                            yAxisID: 'y1'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     scales: {
                         y: {
-                            beginAtZero: true
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '세션 수'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '평균 체류시간(초)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
                         }
                     }
                 }
             });
+        }
+
+        // 차트 초기화 상태 확인 함수
+        function ensureChartsInitialized() {
+            if (!charts.areaChart || !charts.deviceChart || !charts.browserChart || !charts.timeChart) {
+                initializeCharts();
+            }
+        }
+
+        // 에러 표시
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
         }
 
         // 차트 업데이트
@@ -441,44 +483,179 @@
         }
 
         // 세션 테이블 업데이트
-        async function loadSessionsTable() {
+        function updateSessionsTable(sessions) {
             const tbody = document.getElementById('sessions-table-body');
-            if (!tbody) return;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions?limit=10`);
-                if (!response.ok) {
-                    throw new Error('세션 데이터 로드 실패');
-                }
-                const data = await response.json();
-
-                if (!data.success || !data.data) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center">데이터가 없습니다.</td>
-                        </tr>
-                    `;
-                    return;
-                }
-
-                tbody.innerHTML = data.data.map(session => `
-                    <tr>
-                        <td>${session.session_id ? session.session_id.substring(0, 8) : '-'}...</td>
-                        <td>${session.start_time ? new Date(session.start_time).toLocaleString() : '-'}</td>
-                        <td>${session.device_type || '-'}</td>
-                        <td>${session.browser_name || '-'}</td>
-                        <td>${session.pageviews || 0}</td>
-                        <td>${session.total_interactions || 0}</td>
-                    </tr>
-                `).join('');
-            } catch (error) {
-                console.error('세션 테이블 로드 실패:', error);
+            
+            if (!sessions || !Array.isArray(sessions) || sessions.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center">세션 데이터 로드 중 오류가 발생했습니다.</td>
+                        <td colspan="6" class="text-center">데이터가 없습니다.</td>
                     </tr>
                 `;
+                return;
             }
+
+            tbody.innerHTML = sessions.map(session => {
+                // 세션 ID 포맷팅: session_ 제거하고 뒷부분 ID만 표시
+                const fullSessionId = session.session_id || '-';
+                const shortSessionId = fullSessionId !== '-' ? 
+                    fullSessionId.replace('session_', '').substring(0, 8) + '...' : 
+                    '-';
+
+                // 시작 시간을 한국 시간으로 변환
+                const startTime = session.start_time ? 
+                    new Date(session.start_time).toLocaleString('ko-KR', {
+                        timeZone: 'Asia/Seoul',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : '-';
+
+                // 디바이스 타입 첫 글자 대문자로 변환
+                const deviceType = session.device_type ? 
+                    session.device_type.charAt(0).toUpperCase() + 
+                    session.device_type.slice(1) : 
+                    '-';
+
+                // 브라우저 정보 포맷팅
+                const browser = session.browser_name ? 
+                    session.browser_name.charAt(0).toUpperCase() + 
+                    session.browser_name.slice(1) +
+                    (session.browser_version ? ` ${session.browser_version}` : '') :
+                    '-';
+
+                return `
+                    <tr>
+                        <td>
+                            <span title="${fullSessionId}" 
+                                  data-bs-toggle="tooltip" 
+                                  data-bs-placement="top" 
+                                  style="cursor: help;">
+                                ${shortSessionId}
+                            </span>
+                        </td>
+                        <td>${startTime}</td>
+                        <td>${deviceType}</td>
+                        <td>${browser}</td>
+                        <td>${formatNumber(session.pageviews || 0)}</td>
+                        <td>${formatNumber(session.total_interactions || 0)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 툴팁 초기화
+            const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(tooltip => {
+                new bootstrap.Tooltip(tooltip);
+            });
+        }
+
+        // 숫자 포맷 함수
+        function formatNumber(num) {
+            return new Intl.NumberFormat('ko-KR').format(num);
+        }
+
+        // 시간 포맷 함수 (초 단위를 분:초 형식으로 변환)
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // 영역별 체류시간 차트 업데이트
+        function updateAreaChart(areaData) {
+            if (!areaData || !Array.isArray(areaData) || areaData.length === 0) {
+                charts.areaChart.data.labels = [];
+                charts.areaChart.data.datasets[0].data = [];
+                charts.areaChart.data.datasets[1].data = [];
+                charts.areaChart.update();
+                return;
+            }
+
+            // 차트 데이터 준비
+            const labels = areaData.map(item => item.area_name);
+            const visitors = areaData.map(item => item.visitor_count);
+            const avgTimes = areaData.map(item => item.avg_time_spent);
+
+            // 차트 업데이트
+            charts.areaChart.data.labels = labels;
+            charts.areaChart.data.datasets[0].data = visitors;
+            charts.areaChart.data.datasets[1].data = avgTimes;
+            charts.areaChart.update();
+        }
+
+        // 디바이스별 통계 차트 업데이트
+        function updateDeviceChart(deviceData) {
+            if (!deviceData || !Array.isArray(deviceData) || deviceData.length === 0) {
+                charts.deviceChart.data.labels = [];
+                charts.deviceChart.data.datasets[0].data = [];
+                charts.deviceChart.update();
+                return;
+            }
+
+            const labels = deviceData.map(item => {
+                const type = item.device_type === 'unknown' ? '알 수 없음' : item.device_type;
+                return type.charAt(0).toUpperCase() + type.slice(1);
+            });
+            const data = deviceData.map(item => item.session_count);
+
+            charts.deviceChart.data.labels = labels;
+            charts.deviceChart.data.datasets[0].data = data;
+            charts.deviceChart.update();
+        }
+
+        // 브라우저별 통계 차트 업데이트
+        function updateBrowserChart(browserData) {
+            if (!browserData || !Array.isArray(browserData) || browserData.length === 0) {
+                charts.browserChart.data.labels = [];
+                charts.browserChart.data.datasets[0].data = [];
+                charts.browserChart.update();
+                return;
+            }
+
+            const labels = browserData.map(item => {
+                const browser = item.browser === 'unknown' ? '알 수 없음' : item.browser;
+                return browser.charAt(0).toUpperCase() + browser.slice(1) + 
+                    (item.version ? ` ${item.version}` : '');
+            });
+            const data = browserData.map(item => item.session_count);
+
+            charts.browserChart.data.labels = labels;
+            charts.browserChart.data.datasets[0].data = data;
+            charts.browserChart.update();
+        }
+
+        // 시간대별 통계 차트 업데이트
+        function updateTimeChart(hourlyData) {
+            if (!hourlyData || !Array.isArray(hourlyData) || hourlyData.length === 0) {
+                charts.timeChart.data.labels = [];
+                charts.timeChart.data.datasets[0].data = [];
+                charts.timeChart.data.datasets[1].data = [];
+                charts.timeChart.update();
+                return;
+            }
+
+            // 0-23시까지의 데이터 초기화
+            const hours = Array.from({ length: 24 }, (_, i) => i);
+            const sessionCounts = new Array(24).fill(0);
+            const pageviewCounts = new Array(24).fill(0);
+
+            // 데이터 매핑
+            hourlyData.forEach(item => {
+                const hour = parseInt(item.hour);
+                if (hour >= 0 && hour < 24) {
+                    sessionCounts[hour] = item.session_count;
+                    pageviewCounts[hour] = item.pageview_count;
+                }
+            });
+
+            // 차트 업데이트
+            charts.timeChart.data.labels = hours.map(h => `${h}시`);
+            charts.timeChart.data.datasets[0].data = sessionCounts;
+            charts.timeChart.data.datasets[1].data = pageviewCounts;
+            charts.timeChart.update();
         }
 
         // 대시보드 데이터 로드
@@ -487,59 +664,63 @@
                 // 차트 초기화 상태 확인
                 ensureChartsInitialized();
 
-                // 필터 값 가져오기
                 const dateFrom = document.getElementById('date-from').value;
                 const dateTo = document.getElementById('date-to').value;
                 const page = document.getElementById('page-filter').value;
 
-                // 통계 데이터 로드
-                const dashboardStats = await fetchAPI('/dashboard/stats', { dateFrom, dateTo, page });
-
-                // API 응답 유효성 검사
-                if (!dashboardStats?.success) {
-                    throw new Error('데이터를 가져오는데 실패했습니다.');
+                // API 호출 경로 수정
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?dateFrom=${dateFrom}&dateTo=${dateTo}&page=${page}`);
+                if (!response.ok) throw new Error('API 요청 실패');
+                
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'API 응답 실패');
                 }
 
-                const stats = dashboardStats.data;
-                console.log('Dashboard stats:', stats); // 디버깅용 로그
-
-                // 요약 통계 업데이트
-                const overview = stats.overview || {};
-                document.getElementById('total-sessions').textContent = 
-                    formatNumber(overview.total_sessions || 0);
-                document.getElementById('total-pageviews').textContent = 
-                    formatNumber(overview.total_pageviews || 0);
-                document.getElementById('total-interactions').textContent = 
-                    formatNumber(overview.total_interactions || 0);
-                document.getElementById('avg-session-time').textContent = 
-                    formatNumber(overview.avg_session_time || 0, 1) + '분';
-
-                // 차트 업데이트
-                updateCharts({
-                    areaStats: stats.areas || [],
-                    browsers: stats.browsers || [],
-                    hourlyStats: stats.hourly || []
-                }, stats.devices || []);
-
-                // 세션 테이블 업데이트
-                await loadSessionsTable();
-
+                const data = result.data;
+                
+                // 데이터 표시
+                displayOverviewStats(data.overview);
+                updateAreaChart(data.areas);
+                updateDeviceChart(data.devices);
+                updateBrowserChart(data.browsers);
+                updateTimeChart(data.hourly);
+                
+                // 세션 테이블 업데이트를 위한 별도 API 호출
+                const sessionsResponse = await fetch(`${API_BASE_URL}/api/analytics/dashboard/sessions`);
+                if (!sessionsResponse.ok) throw new Error('세션 데이터 요청 실패');
+                
+                const sessionsResult = await sessionsResponse.json();
+                if (sessionsResult.success) {
+                    updateSessionsTable(sessionsResult.data);
+                }
+                
             } catch (error) {
                 console.error('데이터 로드 실패:', error);
-                showError('데이터 로드 중 오류가 발생했습니다: ' + error.message);
-                
-                // 에러 발생 시 차트 초기화
-                updateCharts({
-                    areaStats: [],
-                    browsers: [],
-                    hourlyStats: []
-                }, []);
+                showError('데이터를 불러오는데 실패했습니다: ' + error.message);
             }
+        }
+
+        // 요약 통계 표시 함수
+        function displayOverviewStats(overview) {
+            if (!overview) return;
+            
+            document.getElementById('total-sessions').textContent = 
+                formatNumber(overview.total_sessions || 0);
+            document.getElementById('total-pageviews').textContent = 
+                formatNumber(overview.total_pageviews || 0);
+            document.getElementById('total-interactions').textContent = 
+                formatNumber(overview.total_interactions || 0);
+            document.getElementById('avg-session-time').textContent = 
+                formatTime(overview.avg_session_time || 0);
         }
 
         // 초기화
         // 페이지 로드 시 오늘 날짜 기준으로 초기화
         window.addEventListener('DOMContentLoaded', () => {
+            // 차트 초기화
+            initializeCharts();
+
             const today = new Date();
             const weekAgo = new Date(today);
             weekAgo.setDate(today.getDate() - 7);
@@ -547,6 +728,7 @@
             document.getElementById('date-from').value = weekAgo.toISOString().split('T')[0];
             document.getElementById('date-to').value = today.toISOString().split('T')[0];
 
+            // 데이터 로드
             loadDashboardData();
         });
 

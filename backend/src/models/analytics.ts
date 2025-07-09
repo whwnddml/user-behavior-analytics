@@ -667,20 +667,46 @@ export class AnalyticsModel {
     const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
 
     const query = `
+      WITH time_groups AS (
+        SELECT 
+          ae.area_id,
+          ae.area_name,
+          ae.time_spent,
+          ae.interaction_count,
+          ae.viewport_percent,
+          s.session_id,
+          CASE 
+            WHEN ae.time_spent >= 600 THEN '10분 이상'
+            WHEN ae.time_spent >= 300 THEN '5-10분'
+            WHEN ae.time_spent >= 180 THEN '3-5분'
+            WHEN ae.time_spent >= 60 THEN '1-3분'
+            ELSE '1분 미만'
+          END as time_group
+        FROM area_engagements ae
+        JOIN pageviews p ON ae.pageview_id = p.pageview_id
+        JOIN sessions s ON p.session_id = s.session_id
+        ${dateCondition}
+      )
       SELECT 
-        ae.area_id,
-        ae.area_name,
-        COUNT(*) as total_engagements,
-        AVG(ae.time_spent) as avg_time_spent,
-        SUM(ae.interaction_count) as total_interactions,
-        AVG(ae.viewport_percent) as avg_viewport_percent,
-        COUNT(DISTINCT s.session_id) as unique_sessions
-      FROM area_engagements ae
-      JOIN pageviews p ON ae.pageview_id = p.pageview_id
-      JOIN sessions s ON p.session_id = s.session_id
-      ${dateCondition}
-      GROUP BY ae.area_id, ae.area_name
-      ORDER BY avg_time_spent DESC
+        area_id,
+        area_name,
+        time_group,
+        COUNT(*) as engagement_count,
+        AVG(time_spent) as avg_time_spent,
+        SUM(interaction_count) as total_interactions,
+        AVG(viewport_percent) as avg_viewport_percent,
+        COUNT(DISTINCT session_id) as unique_sessions
+      FROM time_groups
+      GROUP BY area_id, area_name, time_group
+      ORDER BY 
+        area_id,
+        CASE time_group
+          WHEN '1분 미만' THEN 1
+          WHEN '1-3분' THEN 2
+          WHEN '3-5분' THEN 3
+          WHEN '5-10분' THEN 4
+          WHEN '10분 이상' THEN 5
+        END
     `;
 
     const result = await pool.query(query, params);
