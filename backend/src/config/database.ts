@@ -9,8 +9,8 @@ export const pool = new Pool({
   // 연결 풀 설정
   max: 20, // 최대 클라이언트 수
   min: 2,  // 최소 유지 연결 수
-  idleTimeoutMillis: 60000, // 유휴 연결 타임아웃 (1분)
-  connectionTimeoutMillis: 10000, // 연결 타임아웃 (10초)
+  idleTimeoutMillis: 300000, // 유휴 연결 타임아웃 (5분)
+  connectionTimeoutMillis: 30000, // 연결 타임아웃 (30초)
   allowExitOnIdle: false, // 유휴 상태에서 연결 유지
   statement_timeout: 30000, // 쿼리 타임아웃 (30초)
   query_timeout: 30000 // 쿼리 타임아웃 (30초)
@@ -30,7 +30,7 @@ pool.on('remove', () => {
 });
 
 // 데이터베이스 연결 테스트 (재시도 로직 포함)
-export const testConnection = async (retries = 5): Promise<boolean> => {
+export const testConnection = async (retries = 10): Promise<boolean> => {
   for (let i = 0; i < retries; i++) {
     try {
       const client = await pool.connect();
@@ -50,8 +50,9 @@ export const testConnection = async (retries = 5): Promise<boolean> => {
       });
       
       if (i < retries - 1) {
-        logger.info(`Retrying connection in 2 seconds... (Attempt ${i + 2}/${retries})`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const delay = Math.min(1000 * Math.pow(2, i), 30000); // 지수 백오프, 최대 30초
+        logger.info(`Retrying connection in ${delay/1000} seconds... (Attempt ${i + 2}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }

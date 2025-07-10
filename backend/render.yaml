@@ -20,4 +20,7 @@ services:
 databases:
   - name: user-behavior-analytics-db
     databaseName: uba
-    ipAllowList: []  # 모든 IP 허용 
+    plan: free # 또는 starter
+    ipAllowList: 
+      - source: 0.0.0.0/0
+        description: everywhere 
