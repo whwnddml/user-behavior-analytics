@@ -892,6 +892,76 @@ class UserAnalytics {
     }
 }
 
+/**
+ * API 호출 함수
+ */
+async function callAPI(endpoint, data, retries = 3) {
+    const baseURL = window.API_BASE_URL;
+    const url = `${baseURL}/api/analytics${endpoint}`;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`API call failed: ${response.status} ${response.statusText} ${errorData.message || ''}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`API call attempt ${attempt}/${retries} failed:`, error);
+            
+            if (attempt === retries) {
+                throw error;
+            }
+            
+            // 재시도 전 지수 백오프 대기
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
+
+/**
+ * 분석 데이터 전송
+ */
+async function sendAnalyticsData(isBeforeUnload = false) {
+    try {
+        // 데이터베이스 연결 상태 확인
+        const healthCheck = await fetch(`${window.API_BASE_URL}/api/analytics/health`)
+            .catch(() => ({ ok: false }));
+            
+        if (!healthCheck.ok) {
+            console.warn('Health check failed, will retry sending analytics data later');
+            if (!isBeforeUnload) {
+                setTimeout(() => sendAnalyticsData(), 60000); // 1분 후 재시도
+            }
+            return;
+        }
+
+        const data = getCurrentStats();
+        await callAPI('/collect', data);
+        
+        // 전송 성공 후 임시 데이터 초기화
+        if (!isBeforeUnload) {
+            resetTransientData();
+        }
+    } catch (error) {
+        console.error('Failed to send analytics data:', error);
+        // 페이지 언로드가 아닌 경우에만 재시도
+        if (!isBeforeUnload) {
+            setTimeout(() => sendAnalyticsData(), 60000); // 1분 후 재시도
+        }
+    }
+}
+
 // 전역 인스턴스 생성
 window.UserAnalytics = new UserAnalytics({
     debug: true, // 개발 중에는 디버그 모드 활성화
