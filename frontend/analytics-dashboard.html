@@ -481,9 +481,9 @@
                 if (startDate) params.append('startDate', `${startDate}T00:00:00`);
                 if (endDate) params.append('endDate', `${endDate}T23:59:59`);
                 if (pageFilter) {
-                    // URL 인코딩 처리
-                    const encodedPage = encodeURIComponent(pageFilter);
-                    params.append('page', encodedPage);
+                    // URL 디코딩 후 다시 인코딩하여 이중 인코딩 방지
+                    const decodedPage = decodeURIComponent(pageFilter);
+                    params.append('page', decodedPage);
                 }
 
                 // API 요청 설정

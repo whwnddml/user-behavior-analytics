@@ -40,7 +40,12 @@ class UserAnalytics {
             areaEngagements: [],
             interactionMap: [],
             formAnalytics: [],
-            performance: {}
+            performance: {},
+            scrollMetrics: {
+                scrollDepthBreakpoints: { 25: false, 50: false, 75: false, 100: false },
+                deepestScroll: 0,
+                scrollPattern: []
+            }
         };
 
         // 추적 상태
@@ -678,6 +683,13 @@ class UserAnalytics {
             // 기본 배열 데이터 초기화
             if (!this.analyticsData.interactionMap) this.analyticsData.interactionMap = [];
             if (!this.analyticsData.formAnalytics) this.analyticsData.formAnalytics = [];
+            if (!this.analyticsData.scrollMetrics) {
+                this.analyticsData.scrollMetrics = {
+                    scrollDepthBreakpoints: { 25: false, 50: false, 75: false, 100: false },
+                    deepestScroll: 0,
+                    scrollPattern: []
+                };
+            }
 
             // 전송할 데이터 준비
             const payload = {
@@ -694,6 +706,11 @@ class UserAnalytics {
                     firstPaint: ensureNumber(this.analyticsData.performance.firstPaint),
                     firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint),
                     navigationtype: ensureNumber(this.analyticsData.performance.navigationtype, 0)
+                },
+                scrollMetrics: {
+                    scrollDepthBreakpoints: this.analyticsData.scrollMetrics.scrollDepthBreakpoints,
+                    deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
+                    scrollPattern: this.analyticsData.scrollMetrics.scrollPattern || []
                 },
                 areaEngagements: (this.analyticsData.areaEngagements || []).map(area => ({
                     areaId: area.areaId,
