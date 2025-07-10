@@ -14,24 +14,8 @@ const port = process.env.PORT || 3000;
 // 데이터베이스 연결
 const pool = new Pool(config.database);
 
-// 모든 요청에 대해 CORS 헤더 설정
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400');
-
-    // OPTIONS 요청에 대한 즉시 응답
-    if (req.method === 'OPTIONS') {
-        logger.info('Received OPTIONS request', {
-            origin: req.headers.origin,
-            path: req.path
-        });
-        return res.status(200).end();
-    }
-    next();
-});
+// CORS 설정 - 모든 도메인 허용
+app.use(cors());
 
 // 기본 미들웨어 설정
 app.use(helmet({
