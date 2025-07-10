@@ -4,12 +4,16 @@ services:
     env: node
     buildCommand: npm install && tsc && node dist/utils/initDB.js
     startCommand: npm start
-    healthCheckPath: /api/health
+    healthCheckPath: /api/analytics/health
+    healthCheckTimeout: 60
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: postgresql://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a.oregon-postgres.render.com/uba_zfqs
+        fromDatabase:
+          name: uba_zfqs
+          property: connectionString
       - key: CORS_ORIGIN
         value: "https://whwnddml.github.io,https://*.brandiup.com"
       - key: LOG_LEVEL
@@ -23,7 +27,7 @@ databases:
   - name: uba_zfqs
     databaseName: uba_zfqs
     user: brandiup
-    plan: free # 또는 starter
-    ipAllowList: 
+    plan: free
+    ipAllowList:
       - source: 0.0.0.0/0
         description: everywhere 

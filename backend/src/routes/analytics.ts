@@ -7,24 +7,59 @@ import { testConnection } from '../config/database';
 export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
     const router = express.Router();
 
+    // 헬스체크 엔드포인트 추가
+    router.get('/health', async (_req, res) => {
+        try {
+            const dbConnected = await testConnection(3);
+            const status = {
+                service: 'user-behavior-analytics-api',
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                database: {
+                    connected: dbConnected,
+                    status: dbConnected ? 'healthy' : 'unhealthy'
+                }
+            };
+            
+            if (!dbConnected) {
+                logger.error('Health check failed: Database connection failed');
+                return res.status(503).json({
+                    ...status,
+                    status: 'degraded',
+                    message: 'Database connection failed'
+                });
+            }
+            
+            return res.json(status);
+        } catch (error) {
+            logger.error('Health check error:', error);
+            return res.status(500).json({
+                service: 'user-behavior-analytics-api',
+                status: 'error',
+                timestamp: new Date().toISOString(),
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    });
+
     // 데이터베이스 연결 상태 체크
     router.get('/health/db', async (req: Request, res: Response): Promise<void> => {
         try {
             const isConnected = await testConnection(3);
             if (isConnected) {
-                res.json({ 
+                res.json({
                     status: 'healthy',
                     message: 'Database connection is successful'
                 });
             } else {
-                res.status(503).json({ 
+                res.status(503).json({
                     status: 'unhealthy',
                     message: 'Database connection failed after multiple retries'
                 });
             }
         } catch (error) {
             logger.error('Database health check failed:', error);
-            res.status(503).json({ 
+            res.status(503).json({
                 status: 'error',
                 message: error instanceof Error ? error.message : 'Unknown database error'
             });
@@ -157,7 +192,7 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
                 });
             }
 
-            res.json({ 
+            res.json({
                 message: 'Analytics data saved successfully',
                 timestamp: new Date().toISOString()
             });
@@ -173,7 +208,7 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             // 데이터베이스 연결 상태 확인
             const isConnected = await testConnection(3);
             if (!isConnected) {
-                res.status(503).json({ 
+                res.status(503).json({
                     success: false,
                     error: 'Service Unavailable',
                     message: 'Database connection is currently unavailable. Please try again later.'
@@ -195,7 +230,7 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             const pageFilter = page && typeof page === 'string' ? page : undefined;
 
             const stats = await analyticsModel.getSessionStats(parsedStartDate, parsedEndDate, pageFilter);
-            
+
             res.json({
                 success: true,
                 data: stats
@@ -209,7 +244,7 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
 
             // 데이터베이스 연결 오류 특별 처리
             if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
-                res.status(503).json({ 
+                res.status(503).json({
                     success: false,
                     error: 'Service Unavailable',
                     message: 'Database connection is currently unavailable. Please try again later.',
@@ -218,7 +253,7 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
                 return;
             }
 
-            res.status(500).json({ 
+            res.status(500).json({
                 success: false,
                 error: 'Internal Server Error',
                 message: error instanceof Error ? error.message : 'An unexpected error occurred'
