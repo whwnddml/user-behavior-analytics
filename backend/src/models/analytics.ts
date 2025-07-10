@@ -303,70 +303,26 @@ export class AnalyticsModel {
         startDate?: string | Date | undefined,
         endDate?: string | Date | undefined,
         pageFilter?: string
-    ): Promise<{
-        overview: {
-            total_sessions: number;
-            total_pageviews: number;
-            total_interactions: number;
-            avg_session_time: number;
-        };
-        areas: Array<{
-            area_name: string;
-            visitor_count: number;
-            avg_time_spent: number;
-        }>;
-        devices: Array<{
-            device_type: string;
-            session_count: number;
-        }>;
-        browsers: Array<{
-            browser: string;
-            version: string;
-            session_count: number;
-        }>;
-        hourly: Array<{
-            hour: number;
-            session_count: number;
-            pageview_count: number;
-        }>;
-        recent_sessions: Array<{
-            session_id: string;
-            start_time: Date;
-            device_type: string;
-            browser_name: string;
-            browser_version: string;
-            pageviews: number;
-            total_interactions: number;
-        }>;
-    }> {
+    ): Promise<any> {
+        const params: any[] = [];
+        let paramIndex = 1;
+        
+        // 날짜 필터 조건 설정
+        if (startDate) {
+            params.push(new Date(startDate));
+        }
+        if (endDate) {
+            params.push(new Date(endDate));
+        }
+        
+        // 페이지 필터 조건 설정
+        let pageFilterCondition = '';
+        if (pageFilter) {
+            pageFilterCondition = 'AND TRIM(BOTH \'/\' FROM p.page_url) = TRIM(BOTH \'/\' FROM $' + (params.length + 1) + ')';
+            params.push(pageFilter);
+        }
+
         try {
-            // 날짜 파라미터 변환
-            const parsedStartDate = startDate ? new Date(startDate) : null;
-            const parsedEndDate = endDate ? new Date(endDate) : null;
-
-            // URL 디코딩 및 정규화
-            let normalizedPageFilter: string | undefined = undefined;
-            if (pageFilter) {
-                try {
-                    normalizedPageFilter = decodeURIComponent(pageFilter).replace(/^\/+|\/+$/g, '');
-                    logger.info('Normalized page filter:', { original: pageFilter, normalized: normalizedPageFilter });
-                } catch (error) {
-                    logger.error('Error normalizing page filter:', error);
-                    normalizedPageFilter = pageFilter;
-                }
-            }
-
-            const pageFilterCondition = normalizedPageFilter ? 'AND TRIM(BOTH \'/\' FROM p.page_url) = TRIM(BOTH \'/\' FROM $3)' : '';
-            const params: (string | Date | null)[] = [parsedStartDate, parsedEndDate];
-            if (normalizedPageFilter) params.push(normalizedPageFilter);
-
-            logger.info('Executing queries with params:', {
-                startDate: parsedStartDate,
-                endDate: parsedEndDate,
-                pageFilter: normalizedPageFilter,
-                condition: pageFilterCondition
-            });
-
             const [overview, areas, devices, browsers, hourly, recentSessions] = await Promise.all([
                 // Overview statistics
                 this.withConnection(async (client) => {
@@ -423,7 +379,12 @@ export class AnalyticsModel {
                         WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
                         AND ($2::timestamp IS NULL OR s.start_time <= $2)
                         ${pageFilterCondition}
-                        GROUP BY device_type
+                        GROUP BY 
+                            CASE 
+                                WHEN s.user_agent LIKE '%Mobile%' THEN 'mobile'
+                                WHEN s.user_agent LIKE '%Tablet%' THEN 'tablet'
+                                ELSE 'desktop'
+                            END
                         ORDER BY session_count DESC
                     `, params);
                     return result.rows;
@@ -432,35 +393,39 @@ export class AnalyticsModel {
                 // Browser statistics
                 this.withConnection(async (client) => {
                     const result = await client.query(`
-                        SELECT 
-                            COALESCE(
+                        WITH browser_info AS (
+                            SELECT 
                                 CASE 
                                     WHEN s.user_agent LIKE '%Chrome%' THEN 'Chrome'
                                     WHEN s.user_agent LIKE '%Firefox%' THEN 'Firefox'
                                     WHEN s.user_agent LIKE '%Safari%' THEN 'Safari'
                                     WHEN s.user_agent LIKE '%Edge%' THEN 'Edge'
                                     ELSE 'Other'
-                                END,
-                                'unknown'
-                            ) as browser,
-                            COALESCE(
-                                REGEXP_REPLACE(
-                                    CASE 
-                                        WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
-                                        WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
-                                        WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
-                                        WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
-                                    END,
-                                    '[^0-9]', '', 'g'
-                                ),
-                                'unknown'
-                            ) as version,
-                            COUNT(DISTINCT s.session_id) as session_count
-                        FROM sessions s
-                        LEFT JOIN pageviews p ON s.session_id = p.session_id
-                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                        ${pageFilterCondition}
+                                END as browser,
+                                COALESCE(
+                                    REGEXP_REPLACE(
+                                        CASE 
+                                            WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
+                                            WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
+                                            WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
+                                            WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
+                                        END,
+                                        '[^0-9]', '', 'g'
+                                    ),
+                                    'unknown'
+                                ) as version,
+                                s.session_id
+                            FROM sessions s
+                            LEFT JOIN pageviews p ON s.session_id = p.session_id
+                            WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                            AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                            ${pageFilterCondition}
+                        )
+                        SELECT 
+                            browser,
+                            version,
+                            COUNT(DISTINCT session_id) as session_count
+                        FROM browser_info
                         GROUP BY browser, version
                         ORDER BY session_count DESC
                     `, params);
@@ -479,7 +444,7 @@ export class AnalyticsModel {
                         WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
                         AND ($2::timestamp IS NULL OR s.start_time <= $2)
                         ${pageFilterCondition}
-                        GROUP BY hour
+                        GROUP BY EXTRACT(HOUR FROM s.start_time)
                         ORDER BY hour
                     `, params);
                     return result.rows;
@@ -488,49 +453,52 @@ export class AnalyticsModel {
                 // Recent sessions
                 this.withConnection(async (client) => {
                     const result = await client.query(`
+                        WITH session_info AS (
+                            SELECT 
+                                s.session_id,
+                                s.start_time,
+                                s.user_agent,
+                                COUNT(DISTINCT p.pageview_id) as pageviews,
+                                COUNT(DISTINCT i.interaction_id) as total_interactions
+                            FROM sessions s
+                            LEFT JOIN pageviews p ON s.session_id = p.session_id
+                            LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
+                            WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                            AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                            ${pageFilterCondition}
+                            GROUP BY s.session_id, s.start_time, s.user_agent
+                        )
                         SELECT 
-                            s.session_id,
-                            s.start_time,
-                            COALESCE(
-                                CASE 
-                                    WHEN s.user_agent LIKE '%Mobile%' THEN 'mobile'
-                                    WHEN s.user_agent LIKE '%Tablet%' THEN 'tablet'
-                                    ELSE 'desktop'
-                                END,
-                                'unknown'
-                            ) as device_type,
-                            COALESCE(
-                                CASE 
-                                    WHEN s.user_agent LIKE '%Chrome%' THEN 'Chrome'
-                                    WHEN s.user_agent LIKE '%Firefox%' THEN 'Firefox'
-                                    WHEN s.user_agent LIKE '%Safari%' THEN 'Safari'
-                                    WHEN s.user_agent LIKE '%Edge%' THEN 'Edge'
-                                    ELSE 'Other'
-                                END,
-                                'unknown'
-                            ) as browser_name,
+                            session_id,
+                            start_time,
+                            CASE 
+                                WHEN user_agent LIKE '%Mobile%' THEN 'mobile'
+                                WHEN user_agent LIKE '%Tablet%' THEN 'tablet'
+                                ELSE 'desktop'
+                            END as device_type,
+                            CASE 
+                                WHEN user_agent LIKE '%Chrome%' THEN 'Chrome'
+                                WHEN user_agent LIKE '%Firefox%' THEN 'Firefox'
+                                WHEN user_agent LIKE '%Safari%' THEN 'Safari'
+                                WHEN user_agent LIKE '%Edge%' THEN 'Edge'
+                                ELSE 'Other'
+                            END as browser_name,
                             COALESCE(
                                 REGEXP_REPLACE(
                                     CASE 
-                                        WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
-                                        WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
-                                        WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
-                                        WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
+                                        WHEN user_agent LIKE '%Chrome/%' THEN SUBSTRING(user_agent FROM 'Chrome/([0-9]+)')
+                                        WHEN user_agent LIKE '%Firefox/%' THEN SUBSTRING(user_agent FROM 'Firefox/([0-9]+)')
+                                        WHEN user_agent LIKE '%Safari/%' THEN SUBSTRING(user_agent FROM 'Safari/([0-9]+)')
+                                        WHEN user_agent LIKE '%Edge/%' THEN SUBSTRING(user_agent FROM 'Edge/([0-9]+)')
                                     END,
                                     '[^0-9]', '', 'g'
                                 ),
                                 'unknown'
                             ) as browser_version,
-                            COUNT(DISTINCT p.pageview_id) as pageviews,
-                            COUNT(DISTINCT i.interaction_id) as total_interactions
-                        FROM sessions s
-                        LEFT JOIN pageviews p ON s.session_id = p.session_id
-                        LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
-                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                        ${pageFilterCondition}
-                        GROUP BY s.session_id, s.start_time, s.user_agent
-                        ORDER BY s.start_time DESC
+                            pageviews,
+                            total_interactions
+                        FROM session_info
+                        ORDER BY start_time DESC
                         LIMIT 10
                     `, params);
                     return result.rows;
