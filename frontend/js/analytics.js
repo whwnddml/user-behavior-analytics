@@ -519,3 +519,22 @@ async function loadSessionsTable() {
         `;
     }
 } 
+
+// 백엔드 서버 Health Check 함수
+function performHealthCheck() {
+    fetch('https://user-behavior-analytics-api.onrender.com/healthz')
+        .then(response => {
+            if (!response.ok) {
+                console.warn('Health check failed:', response.status);
+            }
+        })
+        .catch(error => {
+            console.warn('Health check error:', error);
+        });
+}
+
+// 10분마다 헬스체크 실행 (15분 서스펜드 타임아웃 이전에 요청)
+setInterval(performHealthCheck, 10 * 60 * 1000);
+
+// 페이지 로드 시 즉시 한 번 실행
+performHealthCheck(); 

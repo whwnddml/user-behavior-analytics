@@ -35,6 +35,11 @@ async function startServer() {
         const analyticsModel = new AnalyticsModel();
         app.use('/api/analytics', createAnalyticsRoutes(analyticsModel));
 
+        // Health check endpoint
+        app.get('/healthz', (req, res) => {
+            res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+        });
+
         // 에러 핸들러
         app.use(errorHandler);
 
