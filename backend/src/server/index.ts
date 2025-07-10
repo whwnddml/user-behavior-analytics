@@ -11,11 +11,33 @@ import { AnalyticsModel } from '../models/analytics';
 const app = express();
 const port = process.env.PORT || 3000;  // PORT 환경변수 사용
 
+// CORS 설정
+const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+        // origin이 undefined인 경우는 같은 출처의 요청
+        if (!origin || allowedOrigins.some(allowed => {
+            if (allowed.includes('*')) {
+                const pattern = new RegExp('^' + allowed.replace('*', '.*') + '$');
+                return pattern.test(origin);
+            }
+            return allowed === origin;
+        })) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // 데이터베이스 연결
 const pool = new Pool(config.database);
 
 // 미들웨어 설정
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan(isProduction ? 'combined' : 'dev', {
     stream: {

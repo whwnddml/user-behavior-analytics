@@ -27,23 +27,33 @@ pool.on('remove', () => {
   logger.info('Client removed from pool');
 });
 
-// 데이터베이스 연결 테스트
-export const testConnection = async (): Promise<boolean> => {
-  try {
-    const client = await pool.connect();
-    const result = await client.query('SELECT NOW()');
-    client.release();
-    logger.info('Database connection test successful', {
-      timestamp: result.rows[0].now
-    });
-    return true;
-  } catch (error) {
-    logger.error('Database connection test failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    return false;
+// 데이터베이스 연결 테스트 (재시도 로직 포함)
+export const testConnection = async (retries = 5): Promise<boolean> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const client = await pool.connect();
+      const result = await client.query('SELECT NOW()');
+      client.release();
+      logger.info('Database connection test successful', {
+        timestamp: result.rows[0].now,
+        attempt: i + 1
+      });
+      return true;
+    } catch (error) {
+      logger.error('Database connection test failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        attempt: i + 1,
+        remainingRetries: retries - i - 1
+      });
+      
+      if (i < retries - 1) {
+        logger.info(`Retrying connection in 2 seconds... (Attempt ${i + 2}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
   }
+  return false;
 };
 
 // 연결 풀 종료 함수
@@ -57,4 +67,14 @@ export const closePool = async (): Promise<void> => {
     });
     throw error;
   }
-}; 
+};
+
+// 스크립트로 직접 실행될 때
+if (require.main === module) {
+  testConnection(5)
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('Migration failed:', error);
+      process.exit(1);
+    });
+} 
