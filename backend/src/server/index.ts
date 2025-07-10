@@ -14,7 +14,13 @@ const port = process.env.PORT || 3000;  // PORT 환경변수 사용
 // CORS 설정
 const corsOptions = {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-        const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+        const allowedOrigins = [
+            'http://localhost:3000',
+            'http://localhost:5500',
+            'http://127.0.0.1:5500',
+            'https://whwnddml.github.io',
+            'https://*.brandiup.com'
+        ];
         // origin이 undefined인 경우는 같은 출처의 요청
         if (!origin || allowedOrigins.some(allowed => {
             if (allowed.includes('*')) {
