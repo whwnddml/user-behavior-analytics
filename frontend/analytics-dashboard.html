@@ -272,14 +272,11 @@
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- API 설정 -->
+    <script src="js/api-config.js"></script>
+    
     <!-- 분석 스크립트 -->
     <script>
-        // API 기본 URL 설정
-        const hostname = window.location.hostname;
-        const API_BASE_URL = hostname === 'localhost' || hostname === '127.0.0.1'
-            ? 'http://localhost:3000'
-            : 'https://user-behavior-analytics.onrender.com';
-
         // 전역 차트 객체
         let charts = {
             areaChart: null,
