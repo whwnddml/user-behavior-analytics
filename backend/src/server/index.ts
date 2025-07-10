@@ -11,50 +11,67 @@ import { AnalyticsModel } from '../models/analytics';
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS 설정
-const corsOptions = {
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-        const allowedOrigins = config.cors.allowedOrigins;
-        
-        logger.info(`Incoming request from origin: ${origin}`);
-        
-        // origin이 undefined인 경우는 같은 출처의 요청
-        if (!origin) {
-            logger.info('Same origin request allowed');
-            callback(null, true);
-            return;
-        }
-
-        const isAllowed = allowedOrigins.some(allowed => {
-            if (allowed.includes('*')) {
-                const pattern = new RegExp('^' + allowed.replace(/\*/g, '.*') + '$');
-                return pattern.test(origin);
-            }
-            return allowed === origin;
-        });
-
-        if (isAllowed) {
-            logger.info(`Origin ${origin} is allowed`);
-            callback(null, true);
-        } else {
-            logger.warn(`Origin ${origin} is not allowed. Allowed origins:`, allowedOrigins);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
-    exposedHeaders: ['Content-Length', 'Content-Type'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-};
-
 // 데이터베이스 연결
 const pool = new Pool(config.database);
 
+// CORS 설정
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5500',
+    'http://localhost:8080',
+    'http://127.0.0.1:5500',
+    'http://127.0.0.1:8080',
+    'https://whwnddml.github.io'
+];
+
+// CORS 미들웨어 설정
+app.use(cors({
+    origin: function(origin, callback) {
+        // origin이 undefined인 경우는 같은 출처의 요청
+        if (!origin) {
+            logger.info('Same origin request allowed');
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.includes(origin)) {
+            logger.info(`Allowed origin: ${origin}`);
+            return callback(null, true);
+        }
+
+        logger.warn(`Blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    maxAge: 86400 // Preflight 결과를 24시간 캐시
+}));
+
+// Preflight 요청에 대한 명시적 처리
+app.options('*', (req, res) => {
+    logger.info('Received OPTIONS request', {
+        origin: req.headers.origin,
+        method: req.method,
+        path: req.path
+    });
+    
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Max-Age', '86400');
+        res.status(204).end();
+    } else {
+        res.status(403).end();
+    }
+});
+
 // 미들웨어 설정
-app.use(cors(corsOptions));
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: false // 리소스 공유 허용
+}));
 app.use(morgan(isProduction ? 'combined' : 'dev', {
     stream: {
         write: (message) => logger.info(message.trim())
@@ -62,8 +79,15 @@ app.use(morgan(isProduction ? 'combined' : 'dev', {
 }));
 app.use(express.json());
 
-// OPTIONS 요청에 대한 명시적 처리
-app.options('*', cors(corsOptions));
+// 모든 라우트에 CORS 헤더 추가
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    next();
+});
 
 // 헬스체크 엔드포인트
 app.get('/api/health', (_req, res) => {
@@ -77,5 +101,5 @@ app.use('/api/analytics', createAnalyticsRoutes(analyticsModel));
 // 서버 시작
 app.listen(port, () => {
     logger.info(`Server is running on port ${port}`);
-    logger.info(`Allowed origins: ${JSON.stringify(config.cors.allowedOrigins)}`);
+    logger.info(`Allowed origins: ${JSON.stringify(allowedOrigins)}`);
 });
