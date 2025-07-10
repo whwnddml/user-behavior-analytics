@@ -82,13 +82,11 @@
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- API 설정 -->
+    <script src="js/api-config.js"></script>
+    
     <!-- 분석 스크립트 -->
     <script>
-        // API 기본 URL 설정
-        const API_BASE_URL = window.location.hostname === 'whwnddml.github.io'
-            ? 'https://user-behavior-analytics.onrender.com'
-            : '';
-
         // 상태 메시지 표시
         function showStatus(message, isError = false) {
             const statusDiv = document.getElementById('status-message');
