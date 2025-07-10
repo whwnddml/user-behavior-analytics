@@ -9,17 +9,20 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: user-behavior-analytics-db
-          property: connectionString
+        value: postgresql://brandiup:6eYI50xOFMq98B1jOHMTrbCFxYaT1SKi@dpg-d18v2effte5s73bqn5dg-a.oregon-postgres.render.com/uba_zfqs
       - key: CORS_ORIGIN
         value: "https://whwnddml.github.io,https://*.brandiup.com"
       - key: LOG_LEVEL
         value: "info"
+    disk:
+      name: logs
+      mountPath: /opt/render/project/src/backend/logs
+      sizeGB: 1
 
 databases:
-  - name: user-behavior-analytics-db
-    databaseName: uba
+  - name: uba_zfqs
+    databaseName: uba_zfqs
+    user: brandiup
     plan: free # 또는 starter
     ipAllowList: 
       - source: 0.0.0.0/0
