@@ -289,6 +289,10 @@
             timeChart: null
         };
 
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 5000; // 5초
+
         // 차트 초기화 함수
         function initializeCharts() {
             // 영역별 체류시간 차트
@@ -467,56 +471,85 @@
             loadDashboardData();
         });
 
-        // 대시보드 데이터 로드
-        async function loadDashboardData() {
+        // 데이터베이스 상태 확인
+        async function checkDatabaseHealth() {
             try {
+                const response = await fetch(`${window.API_BASE_URL}/api/analytics/health/db`);
+                const data = await response.json();
+                return data.status === 'healthy';
+            } catch (error) {
+                console.error('Database health check failed:', error);
+                return false;
+            }
+        }
+
+        // 대시보드 데이터 로딩 함수
+        async function loadDashboardData(isRetry = false) {
+            try {
+                // 재시도 시에만 데이터베이스 상태 확인
+                if (isRetry) {
+                    const isHealthy = await checkDatabaseHealth();
+                    if (!isHealthy) {
+                        throw new Error('Database is not healthy');
+                    }
+                }
+
                 const startDate = document.getElementById('date-from').value;
                 const endDate = document.getElementById('date-to').value;
                 const pageFilter = document.getElementById('page-filter').value;
 
                 console.log('Loading data with params:', { startDate, endDate, pageFilter });
 
-                // URL 파라미터 구성
-                const params = new URLSearchParams();
-                if (startDate) params.append('startDate', `${startDate}T00:00:00`);
-                if (endDate) params.append('endDate', `${endDate}T23:59:59`);
-                if (pageFilter) {
-                    // URL 디코딩 후 다시 인코딩하여 이중 인코딩 방지
-                    const decodedPage = decodeURIComponent(pageFilter);
-                    params.append('page', decodedPage);
-                }
+                // API 요청 URL 구성
+                const url = `${window.API_BASE_URL}/api/analytics/dashboard/stats?startDate=${startDate}T00:00:00&endDate=${endDate}T23:59:59&page=${encodeURIComponent(pageFilter)}`;
+                console.log('Requesting API:', url);
 
-                // API 요청 설정
-                const requestOptions = {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    mode: 'cors',
-                    credentials: 'same-origin'
-                };
-
-                const apiUrl = `${API_BASE_URL}/api/analytics/dashboard/stats?${params}`;
-                console.log('Requesting API:', apiUrl);
-
-                const response = await fetch(apiUrl, requestOptions);
+                const response = await fetch(url);
                 
                 if (!response.ok) {
+                    const errorData = await response.json();
+                    if (response.status === 503) {
+                        const retryAfter = parseInt(response.headers.get('Retry-After') || '30');
+                        throw new Error(`Service Unavailable: ${errorData.message}. Retrying in ${retryAfter} seconds...`);
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
-                const data = await response.json();
-                console.log('Received data:', data);
 
+                const data = await response.json();
+                
                 if (!data.success) {
-                    throw new Error(data.error || '데이터 로드 실패');
+                    throw new Error(data.message || 'Failed to load data');
                 }
 
+                // 재시도 카운터 초기화
+                retryCount = 0;
+                
+                // 에러 메시지 숨기기
+                document.getElementById('error-message').style.display = 'none';
+                
+                // 데이터 표시 로직
                 updateDashboard(data.data);
+                
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
-                document.getElementById('error-message').textContent = `데이터 로드 실패: ${error.message}`;
+                
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.style.display = 'block';
+                
+                if (error.message.includes('Service Unavailable') && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    errorMessage.innerHTML = `데이터베이스 연결 오류가 발생했습니다. ${retryCount}번째 재시도 중... (${MAX_RETRIES}회 중)`;
+                    
+                    // 재시도
+                    setTimeout(() => {
+                        loadDashboardData(true);
+                    }, RETRY_DELAY);
+                } else {
+                    errorMessage.innerHTML = `오류가 발생했습니다: ${error.message}`;
+                    if (retryCount >= MAX_RETRIES) {
+                        errorMessage.innerHTML += '<br>최대 재시도 횟수를 초과했습니다. 나중에 다시 시도해주세요.';
+                    }
+                }
             }
         }
 

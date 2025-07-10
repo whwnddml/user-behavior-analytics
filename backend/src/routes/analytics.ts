@@ -2,9 +2,34 @@ import express, { Router, Request, Response } from 'express';
 import { AnalyticsModel } from '../models/analytics';
 import { validateDateRange } from '../middlewares/validation';
 import { logger } from '../config/logger';
+import { testConnection } from '../config/database';
 
 export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
     const router = express.Router();
+
+    // 데이터베이스 연결 상태 체크
+    router.get('/health/db', async (req: Request, res: Response): Promise<void> => {
+        try {
+            const isConnected = await testConnection(3);
+            if (isConnected) {
+                res.json({ 
+                    status: 'healthy',
+                    message: 'Database connection is successful'
+                });
+            } else {
+                res.status(503).json({ 
+                    status: 'unhealthy',
+                    message: 'Database connection failed after multiple retries'
+                });
+            }
+        } catch (error) {
+            logger.error('Database health check failed:', error);
+            res.status(503).json({ 
+                status: 'error',
+                message: error instanceof Error ? error.message : 'Unknown database error'
+            });
+        }
+    });
 
     // 세션 생성
     router.post('/session', async (req: Request, res: Response): Promise<void> => {
@@ -145,8 +170,19 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
     // 대시보드 통계
     router.get('/dashboard/stats', validateDateRange, async (req: Request, res: Response): Promise<void> => {
         try {
+            // 데이터베이스 연결 상태 확인
+            const isConnected = await testConnection(3);
+            if (!isConnected) {
+                res.status(503).json({ 
+                    success: false,
+                    error: 'Service Unavailable',
+                    message: 'Database connection is currently unavailable. Please try again later.'
+                });
+                return;
+            }
+
             const { startDate, endDate, page } = req.query;
-            logger.info('Received dashboard stats request:', {
+            logger.info('Executing queries with params:', {
                 startDate,
                 endDate,
                 page,
@@ -158,20 +194,8 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             const parsedEndDate = endDate && typeof endDate === 'string' ? new Date(endDate) : undefined;
             const pageFilter = page && typeof page === 'string' ? page : undefined;
 
-            logger.info('Parsed dates:', {
-                parsedStartDate,
-                parsedEndDate,
-                pageFilter
-            });
-
             const stats = await analyticsModel.getSessionStats(parsedStartDate, parsedEndDate, pageFilter);
             
-            logger.info('Retrieved stats:', {
-                success: true,
-                statsOverview: stats.overview,
-                hasData: stats.recent_sessions.length > 0
-            });
-
             res.json({
                 success: true,
                 data: stats
@@ -182,10 +206,22 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
                 stack: error instanceof Error ? error.stack : undefined,
                 query: req.query
             });
+
+            // 데이터베이스 연결 오류 특별 처리
+            if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
+                res.status(503).json({ 
+                    success: false,
+                    error: 'Service Unavailable',
+                    message: 'Database connection is currently unavailable. Please try again later.',
+                    retryAfter: 30
+                });
+                return;
+            }
+
             res.status(500).json({ 
                 success: false,
-                error: 'Internal server error',
-                message: error instanceof Error ? error.message : 'Unknown error'
+                error: 'Internal Server Error',
+                message: error instanceof Error ? error.message : 'An unexpected error occurred'
             });
         }
     });
