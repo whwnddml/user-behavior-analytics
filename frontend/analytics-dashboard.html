@@ -477,7 +477,7 @@
                 if (endDate) params.append('endDate', `${endDate}T23:59:59`);
                 params.append('page', pageFilter); // 페이지 필터는 항상 포함
 
-                const response = await fetch(`${API_BASE_URL}/dashboard/stats?${params}`);
+                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?${params}`);
                 const data = await response.json();
 
                 console.log('Received data:', data);
