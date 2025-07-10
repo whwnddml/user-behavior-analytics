@@ -36,31 +36,12 @@ export const analyticsDataSchema = Joi.object({
     })
   ).required(),
 
-  // 스크롤 데이터
-  scrollMetrics: Joi.object({
-    deepestScroll: Joi.number().min(0).max(100).required(),
-    scrollDepthBreakpoints: Joi.object({
-      25: Joi.number().min(0).default(0),
-      50: Joi.number().min(0).default(0),
-      75: Joi.number().min(0).default(0),
-      100: Joi.number().min(0).default(0)
-    }).required(),
-    scrollPattern: Joi.array().items(
-      Joi.object({
-        position: Joi.number().min(0).max(100).required(),
-        timestamp: Joi.string().isoDate().required(),
-        direction: Joi.string().valid('up', 'down').required(),
-        speed: Joi.number().min(0).required()
-      })
-    ).required()
-  }).required(),
-
   // 상호작용 데이터
   interactionMap: Joi.array().items(
     Joi.object({
       x: Joi.number().min(0).required(),
       y: Joi.number().min(0).required(),
-      type: Joi.string().valid('click', 'hover', 'touch').required(),
+      type: Joi.string().valid('click', 'touch').required(),
       targetElement: Joi.string().required(),
       timestamp: Joi.string().isoDate().required(),
       areaId: Joi.string().allow(null).default(null)
@@ -135,3 +116,38 @@ export const parseUserAgent = (userAgent: string) => {
     osVersion: 'Unknown' // 더 정확한 파싱이 필요한 경우 별도 라이브러리 사용
   };
 }; 
+
+export const validateDateRange = (req: Request, res: Response, next: NextFunction): void => {
+    const { startDate, endDate } = req.query;
+
+    if (startDate && typeof startDate === 'string' && !isValidDate(startDate)) {
+        res.status(400).json({
+            error: 'Invalid startDate format. Use ISO 8601 format (YYYY-MM-DD)'
+        });
+        return;
+    }
+
+    if (endDate && typeof endDate === 'string' && !isValidDate(endDate)) {
+        res.status(400).json({
+            error: 'Invalid endDate format. Use ISO 8601 format (YYYY-MM-DD)'
+        });
+        return;
+    }
+
+    if (startDate && endDate && 
+        typeof startDate === 'string' && 
+        typeof endDate === 'string' && 
+        new Date(startDate) > new Date(endDate)) {
+        res.status(400).json({
+            error: 'startDate cannot be later than endDate'
+        });
+        return;
+    }
+
+    next();
+};
+
+function isValidDate(dateString: string): boolean {
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date.getTime());
+} 

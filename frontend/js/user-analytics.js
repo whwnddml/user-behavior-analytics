@@ -16,31 +16,25 @@ class UserAnalytics {
             sendInterval: config.sendInterval || 30000, // 30초마다 전송
             maxRetries: config.maxRetries || 3,
             debug: config.debug || false,
-            enableHeatmap: config.enableHeatmap !== false,
-            enableScrollTracking: config.enableScrollTracking !== false,
             enableFormTracking: config.enableFormTracking !== false,
             enablePerformanceTracking: config.enablePerformanceTracking !== false,
+            sessionTimeout: config.sessionTimeout || 30 * 60 * 1000, // 30분 세션 타임아웃
             ...config
         };
 
+        // 방문자 ID 초기화
+        this.visitorId = this.getOrCreateVisitorId();
+        this.lastActivity = Date.now();
+
         // 데이터 저장소
         this.analyticsData = {
+            visitorId: this.visitorId,
             sessionId: this.generateSessionId(),
-            pageUrl: window.location.pathname,  // href 대신 pathname 사용
+            pageUrl: window.location.pathname,
             pageTitle: document.title,
             userAgent: navigator.userAgent,
             startTime: new Date(),
             areaEngagements: [],
-            scrollMetrics: {
-                deepestScroll: 0,
-                scrollDepthBreakpoints: {
-                    25: 0,
-                    50: 0,
-                    75: 0,
-                    100: 0
-                },
-                scrollPattern: []
-            },
             interactionMap: [],
             formAnalytics: [],
             performance: {}
@@ -50,9 +44,7 @@ class UserAnalytics {
         this.trackingState = {
             isInitialized: false,
             areaObserver: null,
-            scrollTimeout: null,
             sendTimer: null,
-            lastScrollPosition: 0,
             areaTimers: new Map(),
             formStates: new Map(),
             clickCount: 0,
@@ -61,14 +53,72 @@ class UserAnalytics {
 
         // 이벤트 핸들러 바인딩
         this.boundHandlers = {
-            scroll: this.throttle(this.handleScroll.bind(this), 100),
             click: this.handleClick.bind(this),
-            mousemove: this.throttle(this.handleMouseMove.bind(this), 200),
             beforeunload: this.handleBeforeUnload.bind(this),
             visibilitychange: this.handleVisibilityChange.bind(this)
         };
 
         this.init();
+    }
+
+    /**
+     * 방문자 ID 가져오기 또는 생성
+     */
+    getOrCreateVisitorId() {
+        let visitorId = localStorage.getItem('analytics_visitor_id');
+        if (!visitorId) {
+            visitorId = this.generateVisitorId();
+            localStorage.setItem('analytics_visitor_id', visitorId);
+            this.log('New visitor ID created:', visitorId);
+        } else {
+            this.log('Existing visitor ID found:', visitorId);
+        }
+        return visitorId;
+    }
+
+    /**
+     * 새로운 방문자 ID 생성
+     */
+    generateVisitorId() {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 9);
+        return `v_${timestamp}_${random}`;
+    }
+
+    /**
+     * 세션 ID 생성
+     */
+    generateSessionId() {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 9);
+        return `s_${this.visitorId}_${timestamp}_${random}`;
+    }
+
+    /**
+     * 세션 상태 확인 및 갱신
+     */
+    checkSession() {
+        const now = Date.now();
+        if (now - this.lastActivity > this.config.sessionTimeout) {
+            // 세션 타임아웃 - 새 세션 시작
+            this.endSession();
+            this.analyticsData.sessionId = this.generateSessionId();
+            this.analyticsData.startTime = new Date();
+            this.trackingState.sessionStarted = true;
+            this.log('Session timeout - new session started:', this.analyticsData.sessionId);
+        }
+        this.lastActivity = now;
+    }
+
+    /**
+     * 사용자 ID 설정 (로그인 시 호출)
+     */
+    setUserId(userId) {
+        if (!userId) return;
+        
+        this.analyticsData.userId = userId;
+        localStorage.setItem('analytics_user_id', userId);
+        this.log('User ID set:', userId);
     }
 
     /**
@@ -151,12 +201,8 @@ class UserAnalytics {
 
         this.log('Initializing User Analytics...');
 
-        // DOM이 로드되면 추적 시작
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.startTracking());
-        } else {
-            this.startTracking();
-        }
+        // 바로 추적 시작
+        this.startTracking();
 
         // 팝업 추적 초기화 추가
         this.initPopupTracking();
@@ -178,11 +224,6 @@ class UserAnalytics {
         // 영역 추적 초기화
         this.initAreaTracking();
 
-        // 스크롤 추적 초기화
-        if (this.config.enableScrollTracking) {
-            this.initScrollTracking();
-        }
-
         // 인터랙션 추적 초기화
         this.initInteractionTracking();
 
@@ -191,24 +232,18 @@ class UserAnalytics {
             this.initFormTracking();
         }
 
-        // 페이지 가시성 변경 추적
+        // 가시성 변경 추적 초기화
         this.initVisibilityTracking();
 
         // 주기적 데이터 전송 시작
         this.startPeriodicSending();
 
-        // 세션 시작 로그
-        this.trackingState.sessionStarted = true;
-        this.log('Session started:', this.analyticsData.sessionId);
-    }
+        // 이벤트 리스너 등록
+        window.addEventListener('click', this.boundHandlers.click);
+        document.addEventListener('visibilitychange', this.boundHandlers.visibilitychange);
+        window.addEventListener('beforeunload', this.boundHandlers.beforeunload);
 
-    /**
-     * 세션 ID 생성
-     */
-    generateSessionId() {
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 15);
-        return `session_${timestamp}_${random}`;
+        this.trackingState.sessionStarted = true;
     }
 
     /**
@@ -355,72 +390,10 @@ class UserAnalytics {
     }
 
     /**
-     * 스크롤 추적 초기화
-     */
-    initScrollTracking() {
-        window.addEventListener('scroll', this.boundHandlers.scroll, { passive: true });
-        this.log('Scroll tracking initialized');
-    }
-
-    /**
-     * 스크롤 이벤트 처리
-     */
-    handleScroll() {
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.documentElement.scrollHeight;
-        const scrollPercent = Math.round((scrollTop / (documentHeight - windowHeight)) * 100);
-
-        // 최대 스크롤 깊이 업데이트
-        if (scrollPercent > this.analyticsData.scrollMetrics.deepestScroll) {
-            this.analyticsData.scrollMetrics.deepestScroll = scrollPercent;
-        }
-
-        // 스크롤 깊이 이정표 기록
-        [25, 50, 75, 100].forEach(depth => {
-            if (scrollPercent >= depth && !this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth]) {
-                // 초 단위의 타임스탬프를 정수로 저장
-                this.analyticsData.scrollMetrics.scrollDepthBreakpoints[depth] = Math.floor(Date.now() / 1000);
-            }
-        });
-
-        // 스크롤 패턴 기록 (샘플링)
-        if (this.analyticsData.scrollMetrics.scrollPattern.length < 1000) {
-            const direction = scrollTop > this.trackingState.lastScrollPosition ? 'down' : 'up';
-            const speed = Math.abs(scrollTop - this.trackingState.lastScrollPosition);
-
-            this.analyticsData.scrollMetrics.scrollPattern.push({
-                position: scrollPercent,
-                direction,
-                speed,
-                timestamp: Date.now()
-            });
-        }
-
-        this.trackingState.lastScrollPosition = scrollTop;
-
-        // 스크롤 진행바 업데이트
-        this.updateScrollProgress(scrollPercent);
-    }
-
-    /**
-     * 스크롤 진행바 업데이트
-     */
-    updateScrollProgress(percent) {
-        const progressBar = document.getElementById('scroll-progress');
-        if (progressBar) {
-            progressBar.style.width = `${Math.min(percent, 100)}%`;
-        }
-    }
-
-    /**
      * 인터랙션 추적 초기화
      */
     initInteractionTracking() {
-        document.addEventListener('click', this.boundHandlers.click, true);
-        if (this.config.enableHeatmap) {
-            document.addEventListener('mousemove', this.boundHandlers.mousemove, { passive: true });
-        }
+        document.addEventListener('click', this.boundHandlers.click);
         this.log('Interaction tracking initialized');
     }
 
@@ -455,26 +428,6 @@ class UserAnalytics {
         this.createClickEffect(event.clientX, event.clientY);
 
         this.log('Click recorded:', { x: event.clientX, y: event.clientY, area: areaId });
-    }
-
-    /**
-     * 마우스 이동 이벤트 처리
-     */
-    handleMouseMove(event) {
-        const areaElement = event.target.closest('.area[data-area-id]');
-        const areaId = areaElement ? areaElement.dataset.areaId : null;
-
-        // 히트맵 데이터로 마우스 이동 기록 (샘플링)
-        if (this.analyticsData.interactionMap.length < 5000) {
-            this.analyticsData.interactionMap.push({
-                type: 'hover',
-                targetElement: event.target.tagName.toLowerCase(),
-                x: event.clientX,
-                y: event.clientY,
-                timestamp: Date.now(),
-                areaId
-            });
-        }
     }
 
     /**
@@ -722,10 +675,10 @@ class UserAnalytics {
             // 기본 배열 데이터 초기화
             if (!this.analyticsData.interactionMap) this.analyticsData.interactionMap = [];
             if (!this.analyticsData.formAnalytics) this.analyticsData.formAnalytics = [];
-            if (!this.analyticsData.scrollMetrics.scrollPattern) this.analyticsData.scrollMetrics.scrollPattern = [];
 
             // 전송할 데이터 준비
             const payload = {
+                visitorId: this.analyticsData.visitorId,
                 sessionId: this.analyticsData.sessionId,
                 pageUrl: new URL(this.analyticsData.pageUrl, window.location.origin).pathname,  // URL을 pathname으로 변환
                 pageTitle: this.analyticsData.pageTitle,
@@ -752,21 +705,6 @@ class UserAnalytics {
                         viewportPercent: ensureNumber(area.visibility.viewportPercent)
                     }
                 })),
-                scrollMetrics: {
-                    deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
-                    scrollDepthBreakpoints: {
-                        25: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[25] || 0),
-                        50: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[50] || 0),
-                        75: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[75] || 0),
-                        100: ensureNumber(this.analyticsData.scrollMetrics.scrollDepthBreakpoints[100] || 0)
-                    },
-                    scrollPattern: (this.analyticsData.scrollMetrics.scrollPattern || []).map(pattern => ({
-                        position: ensureNumber(pattern.position),
-                        direction: pattern.direction,
-                        speed: ensureNumber(pattern.speed),
-                        timestamp: toISOString(pattern.timestamp)
-                    }))
-                },
                 interactionMap: (this.analyticsData.interactionMap || []).map(interaction => ({
                     x: ensureNumber(interaction.x),
                     y: ensureNumber(interaction.y),
@@ -949,9 +887,7 @@ class UserAnalytics {
      */
     stop() {
         // 이벤트 리스너 제거
-        window.removeEventListener('scroll', this.boundHandlers.scroll);
-        document.removeEventListener('click', this.boundHandlers.click);
-        document.removeEventListener('mousemove', this.boundHandlers.mousemove);
+        window.removeEventListener('click', this.boundHandlers.click);
         document.removeEventListener('visibilitychange', this.boundHandlers.visibilitychange);
         window.removeEventListener('beforeunload', this.boundHandlers.beforeunload);
 
