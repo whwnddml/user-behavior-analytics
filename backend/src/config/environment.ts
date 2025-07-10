@@ -3,13 +3,14 @@ import dotenv from 'dotenv';
 // 환경 변수 로드
 dotenv.config();
 
-const isProduction = process.env.NODE_ENV === 'production';
+export const isProduction = process.env.NODE_ENV === 'production';
+export const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/analytics';
 
 export const config = {
     port: process.env.PORT || 3000,
     host: process.env.HOST || 'localhost',
     database: {
-        url: process.env.DATABASE_URL,
+        url: DATABASE_URL,
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
         database: process.env.DB_NAME || 'analytics',
@@ -23,6 +24,5 @@ export const config = {
     },
     logging: {
         level: process.env.LOG_LEVEL || 'info'
-    },
-    isProduction
+    }
 }; 

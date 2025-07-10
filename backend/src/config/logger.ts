@@ -1,7 +1,7 @@
 import winston from 'winston';
-import { config } from './environment';
+import { config, isProduction } from './environment';
 
-const logLevel = config.isProduction ? 'info' : 'debug';
+const logLevel = isProduction ? 'info' : 'debug';
 
 export const logger = winston.createLogger({
     level: logLevel,

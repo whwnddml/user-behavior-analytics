@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { Pool } from 'pg';
-import { config } from '../config/environment';
+import { config, isProduction } from '../config/environment';
 import { logger } from '../config/logger';
 import { createAnalyticsRoutes } from '../routes/analytics';
 import { AnalyticsModel } from '../models/analytics';
@@ -17,7 +17,7 @@ const pool = new Pool(config.database);
 // 미들웨어 설정
 app.use(cors());
 app.use(helmet());
-app.use(morgan(config.isProduction ? 'combined' : 'dev', {
+app.use(morgan(isProduction ? 'combined' : 'dev', {
     stream: {
         write: (message) => logger.info(message.trim())
     }
