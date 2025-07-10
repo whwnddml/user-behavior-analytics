@@ -222,69 +222,45 @@ class UserAnalytics {
      * 추적 시작
      */
     startTracking() {
-        this.log('Starting user behavior tracking...');
-
         // 성능 메트릭 수집
-        if (this.config.enablePerformanceTracking) {
-            this.collectPerformanceMetrics();
-        }
+        this.collectPerformanceMetrics();
 
         // 영역 추적 초기화
         this.initAreaTracking();
 
-        // 인터랙션 추적 초기화
+        // 클릭 이벤트 추적
         this.initInteractionTracking();
 
-        // 폼 추적 초기화
+        // 폼 추적 초기화 (설정된 경우)
         if (this.config.enableFormTracking) {
             this.initFormTracking();
         }
 
-        // 가시성 변경 추적 초기화
+        // 가시성 변경 추적
         this.initVisibilityTracking();
 
         // 주기적 데이터 전송 시작
         this.startPeriodicSending();
 
-        // 이벤트 리스너 등록
-        window.addEventListener('click', this.boundHandlers.click);
-        document.addEventListener('visibilitychange', this.boundHandlers.visibilitychange);
-        window.addEventListener('beforeunload', this.boundHandlers.beforeunload);
-
-        this.trackingState.sessionStarted = true;
+        this.log('Tracking started');
     }
 
     /**
      * 성능 메트릭 수집
      */
     collectPerformanceMetrics() {
-        if (!window.performance || !window.performance.timing) return;
+        const navigationEntry = performance.getEntriesByType('navigation')[0];
+        const timing = navigationEntry || performance.timing;
 
-        const timing = window.performance.timing;
-        const navigation = window.performance.navigation;
-
-        // 초기 성능 데이터 설정
         this.analyticsData.performance = {
-            loadTime: 0,
-            domContentLoaded: 0,
-            firstPaint: 0,
-            firstContentfulPaint: 0,
-            navigationtype: navigation.type || 0
+            loadTime: timing.loadEventEnd - timing.navigationStart,
+            domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart,
+            firstPaint: this.getFirstPaint(),
+            firstContentfulPaint: this.getFirstContentfulPaint(),
+            navigationtype: navigationEntry ? navigationEntry.type : 0
         };
 
-        // 페이지 로드 완료 후 메트릭 수집
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                this.analyticsData.performance = {
-                    loadTime: timing.loadEventEnd - timing.navigationStart,
-                    domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart,
-                    firstPaint: this.getFirstPaint() || 0,
-                    firstContentfulPaint: this.getFirstContentfulPaint() || 0,
-                    navigationtype: navigation.type || 0
-                };
-                this.log('Performance metrics collected:', this.analyticsData.performance);
-            }, 100);
-        });
+        this.log('Performance metrics collected:', this.analyticsData.performance);
     }
 
     /**
@@ -401,41 +377,48 @@ class UserAnalytics {
      * 인터랙션 추적 초기화
      */
     initInteractionTracking() {
-        document.addEventListener('click', this.boundHandlers.click);
-        this.log('Interaction tracking initialized');
+        // 클릭 이벤트만 추적
+        window.addEventListener('click', this.boundHandlers.click);
+        window.addEventListener('beforeunload', this.boundHandlers.beforeunload);
     }
 
     /**
      * 클릭 이벤트 처리
      */
     handleClick(event) {
-        const areaElement = event.target.closest('.area[data-area-id]');
+        const target = event.target;
+        const areaElement = target.closest('[data-area-id]');
         const areaId = areaElement ? areaElement.dataset.areaId : null;
+
+        // 클릭 위치 정규화 (뷰포트 기준 0-100%)
+        const x = (event.clientX / window.innerWidth) * 100;
+        const y = (event.clientY / window.innerHeight) * 100;
 
         // 클릭 데이터 기록
         this.analyticsData.interactionMap.push({
+            x,
+            y,
             type: 'click',
-            targetElement: event.target.tagName.toLowerCase(),
-            x: event.clientX,
-            y: event.clientY,
-            timestamp: Date.now(),
+            targetElement: target.tagName.toLowerCase(),
+            timestamp: new Date(),
             areaId
         });
 
-        // 영역 인터랙션 카운트 증가
+        // 영역 클릭 카운트 증가
         if (areaId) {
             const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
             if (areaData) {
-                areaData.interactions++;
+                areaData.interactions = (areaData.interactions || 0) + 1;
+                areaData.lastEngagement = new Date();
             }
         }
 
         this.trackingState.clickCount++;
 
-        // 클릭 효과 생성
-        this.createClickEffect(event.clientX, event.clientY);
-
-        this.log('Click recorded:', { x: event.clientX, y: event.clientY, area: areaId });
+        // 디버그 모드에서 클릭 효과 표시
+        if (this.config.debug) {
+            this.createClickEffect(event.clientX, event.clientY);
+        }
     }
 
     /**
@@ -683,13 +666,6 @@ class UserAnalytics {
             // 기본 배열 데이터 초기화
             if (!this.analyticsData.interactionMap) this.analyticsData.interactionMap = [];
             if (!this.analyticsData.formAnalytics) this.analyticsData.formAnalytics = [];
-            if (!this.analyticsData.scrollMetrics) {
-                this.analyticsData.scrollMetrics = {
-                    scrollDepthBreakpoints: { 25: false, 50: false, 75: false, 100: false },
-                    deepestScroll: 0,
-                    scrollPattern: []
-                };
-            }
 
             // 전송할 데이터 준비
             const payload = {
@@ -706,11 +682,6 @@ class UserAnalytics {
                     firstPaint: ensureNumber(this.analyticsData.performance.firstPaint),
                     firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint),
                     navigationtype: ensureNumber(this.analyticsData.performance.navigationtype, 0)
-                },
-                scrollMetrics: {
-                    scrollDepthBreakpoints: this.analyticsData.scrollMetrics.scrollDepthBreakpoints,
-                    deepestScroll: ensureNumber(this.analyticsData.scrollMetrics.deepestScroll),
-                    scrollPattern: this.analyticsData.scrollMetrics.scrollPattern || []
                 },
                 areaEngagements: (this.analyticsData.areaEngagements || []).map(area => ({
                     areaId: area.areaId,
@@ -743,14 +714,6 @@ class UserAnalytics {
                     completed: Boolean(form.completed)
                 }))
             };
-
-            // 디버깅을 위해 실제 전송되는 데이터의 타입을 로깅
-            this.log('ScrollDepthBreakpoints types:', {
-                25: typeof payload.scrollMetrics.scrollDepthBreakpoints[25],
-                50: typeof payload.scrollMetrics.scrollDepthBreakpoints[50],
-                75: typeof payload.scrollMetrics.scrollDepthBreakpoints[75],
-                100: typeof payload.scrollMetrics.scrollDepthBreakpoints[100]
-            });
 
             // 마지막 전송된 payload 저장
             this.lastPayload = payload;
