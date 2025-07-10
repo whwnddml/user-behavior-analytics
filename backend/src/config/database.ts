@@ -9,9 +9,11 @@ export const pool = new Pool({
   // 연결 풀 설정
   max: 20, // 최대 클라이언트 수
   min: 2,  // 최소 유지 연결 수
-  idleTimeoutMillis: 30000, // 유휴 연결 타임아웃 (30초)
-  connectionTimeoutMillis: 5000, // 연결 타임아웃 (5초)
-  allowExitOnIdle: false // 유휴 상태에서 연결 유지
+  idleTimeoutMillis: 60000, // 유휴 연결 타임아웃 (1분)
+  connectionTimeoutMillis: 10000, // 연결 타임아웃 (10초)
+  allowExitOnIdle: false, // 유휴 상태에서 연결 유지
+  statement_timeout: 30000, // 쿼리 타임아웃 (30초)
+  query_timeout: 30000 // 쿼리 타임아웃 (30초)
 });
 
 // 연결 이벤트 핸들러 등록

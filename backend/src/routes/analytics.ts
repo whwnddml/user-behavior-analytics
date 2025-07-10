@@ -146,17 +146,42 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
     router.get('/dashboard/stats', validateDateRange, async (req: Request, res: Response): Promise<void> => {
         try {
             const { startDate, endDate, page } = req.query;
+            logger.info('Received dashboard stats request:', {
+                startDate,
+                endDate,
+                page,
+                headers: req.headers,
+                query: req.query
+            });
+
             const parsedStartDate = startDate && typeof startDate === 'string' ? new Date(startDate) : undefined;
             const parsedEndDate = endDate && typeof endDate === 'string' ? new Date(endDate) : undefined;
             const pageFilter = page && typeof page === 'string' ? page : undefined;
 
+            logger.info('Parsed dates:', {
+                parsedStartDate,
+                parsedEndDate,
+                pageFilter
+            });
+
             const stats = await analyticsModel.getSessionStats(parsedStartDate, parsedEndDate, pageFilter);
+            
+            logger.info('Retrieved stats:', {
+                success: true,
+                statsOverview: stats.overview,
+                hasData: stats.recent_sessions.length > 0
+            });
+
             res.json({
                 success: true,
                 data: stats
             });
         } catch (error) {
-            logger.error('Error getting dashboard stats:', error);
+            logger.error('Error getting dashboard stats:', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                query: req.query
+            });
             res.status(500).json({ 
                 success: false,
                 error: 'Internal server error',
