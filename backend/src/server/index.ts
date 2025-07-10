@@ -9,7 +9,7 @@ import { createAnalyticsRoutes } from '../routes/analytics';
 import { AnalyticsModel } from '../models/analytics';
 
 const app = express();
-const port = config.port || 3000;
+const port = process.env.PORT || 3000;  // PORT 환경변수 사용
 
 // 데이터베이스 연결
 const pool = new Pool(config.database);
@@ -23,6 +23,11 @@ app.use(morgan(isProduction ? 'combined' : 'dev', {
     }
 }));
 app.use(express.json());
+
+// 헬스체크 엔드포인트
+app.get('/api/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // 분석 모델 및 라우터 초기화
 const analyticsModel = new AnalyticsModel(pool);

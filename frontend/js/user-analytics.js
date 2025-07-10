@@ -9,7 +9,7 @@ class UserAnalytics {
         const hostname = window.location.hostname;
         const defaultApiEndpoint = hostname === 'localhost' || hostname === '127.0.0.1'
             ? 'http://localhost:3000/api/analytics'
-            : 'https://user-behavior-analytics.onrender.com/api/analytics';
+            : 'https://user-behavior-analytics-api.onrender.com/api/analytics';
 
         this.config = {
             apiEndpoint: config.apiEndpoint || defaultApiEndpoint,
