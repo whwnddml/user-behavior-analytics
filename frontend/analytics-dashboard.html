@@ -469,14 +469,37 @@
 
                 console.log('Loading data with params:', { startDate, endDate, pageFilter });
 
+                // URL 파라미터 구성
                 const params = new URLSearchParams();
                 if (startDate) params.append('startDate', `${startDate}T00:00:00`);
                 if (endDate) params.append('endDate', `${endDate}T23:59:59`);
-                params.append('page', pageFilter); // 페이지 필터는 항상 포함
+                if (pageFilter) {
+                    // URL 인코딩 처리
+                    const encodedPage = encodeURIComponent(pageFilter);
+                    params.append('page', encodedPage);
+                }
 
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?${params}`);
+                // API 요청 설정
+                const requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors',
+                    credentials: 'include'
+                };
+
+                const apiUrl = `${API_BASE_URL}/api/analytics/dashboard/stats?${params}`;
+                console.log('Requesting API:', apiUrl);
+
+                const response = await fetch(apiUrl, requestOptions);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
-
                 console.log('Received data:', data);
 
                 if (!data.success) {
@@ -486,9 +509,15 @@
                 updateDashboard(data.data);
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
-                document.getElementById('error-message').textContent = error.message;
+                document.getElementById('error-message').textContent = `데이터 로드 실패: ${error.message}`;
             }
         }
+
+        // 페이지 필터 변경 이벤트 핸들러
+        document.getElementById('page-filter').addEventListener('change', function() {
+            console.log('Page filter changed to:', this.value);
+            loadDashboardData();
+        });
 
         // 대시보드 업데이트
         function updateDashboard(data) {
