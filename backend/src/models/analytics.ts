@@ -302,9 +302,28 @@ export class AnalyticsModel {
             const parsedStartDate = startDate ? new Date(startDate) : null;
             const parsedEndDate = endDate ? new Date(endDate) : null;
 
-            const pageFilterCondition = pageFilter ? 'AND p.page_url = $3' : '';
+            // URL 디코딩 및 정규화
+            let normalizedPageFilter: string | undefined = undefined;
+            if (pageFilter) {
+                try {
+                    normalizedPageFilter = decodeURIComponent(pageFilter).replace(/^\/+|\/+$/g, '');
+                    logger.info('Normalized page filter:', { original: pageFilter, normalized: normalizedPageFilter });
+                } catch (error) {
+                    logger.error('Error normalizing page filter:', error);
+                    normalizedPageFilter = pageFilter;
+                }
+            }
+
+            const pageFilterCondition = normalizedPageFilter ? 'AND TRIM(BOTH \'/\' FROM p.page_url) = TRIM(BOTH \'/\' FROM $3)' : '';
             const params: (string | Date | null)[] = [parsedStartDate, parsedEndDate];
-            if (pageFilter) params.push(pageFilter);
+            if (normalizedPageFilter) params.push(normalizedPageFilter);
+
+            logger.info('Executing queries with params:', {
+                startDate: parsedStartDate,
+                endDate: parsedEndDate,
+                pageFilter: normalizedPageFilter,
+                condition: pageFilterCondition
+            });
 
             const [overview, areas, devices, browsers, hourly, recentSessions] = await Promise.all([
                 // Overview statistics
