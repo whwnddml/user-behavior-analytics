@@ -8,11 +8,11 @@
     "start": "NODE_ENV=production node dist/server/index.js",
     "dev": "nodemon src/server/index.ts",
     "build": "tsc",
-    "build:render": "npm install && tsc && npm run db:migrate",
+    "build:render": "npm install && tsc && node dist/utils/initDB.js",
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write src/**/*.{js,ts,json}",
-    "db:migrate": "node dist/utils/migrate.js",
+    "db:migrate": "node dist/utils/initDB.js",
     "db:seed": "node dist/utils/seed.js"
   },
   "keywords": [

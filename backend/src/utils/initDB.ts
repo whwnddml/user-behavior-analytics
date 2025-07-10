@@ -18,4 +18,14 @@ export const initializeDatabase = async (): Promise<void> => {
     console.error('❌ 데이터베이스 초기화 실패:', error);
     throw error;
   }
-}; 
+};
+
+// 스크립트로 직접 실행될 때
+if (require.main === module) {
+  initializeDatabase()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('Migration failed:', error);
+      process.exit(1);
+    });
+} 
