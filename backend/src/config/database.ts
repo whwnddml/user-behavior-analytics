@@ -24,7 +24,7 @@ pool.on('error', (err, client) => {
     clientPresent: !!client
   });
   
-  // 오류 발생 시 자동으로 재연결 시도
+  // 오류 발생 시 자동으로 재연결 시도...
   setTimeout(() => {
     logger.info('Attempting to reconnect after error...');
     testConnection(3);
