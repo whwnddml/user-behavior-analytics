@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { pool, testConnection } from '../config/database';
 import { logger } from '../config/logger';
 
 export interface Session {
@@ -67,7 +67,31 @@ export interface FormAnalytics {
 }
 
 export class AnalyticsModel {
-    constructor(private pool: Pool) {}
+    private async withConnection<T>(operation: (client: any) => Promise<T>): Promise<T> {
+        const client = await pool.connect();
+        try {
+            // 연결 테스트
+            await client.query('SELECT 1');
+            return await operation(client);
+        } catch (error) {
+            logger.error('Database operation failed:', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                operation: operation.name
+            });
+            
+            // 연결 오류인 경우 재연결 시도
+            if (error instanceof Error && 
+                (error.message.includes('ECONNREFUSED') || 
+                 error.message.includes('connection terminated'))) {
+                await testConnection(3);
+            }
+            
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
 
     async createSession(visitorId: string, userAgent?: string | null): Promise<Session> {
         const query = `
@@ -77,8 +101,11 @@ export class AnalyticsModel {
         `;
         
         try {
-            const result = await this.pool.query(query, [visitorId, userAgent || null]);
-            return result.rows[0];
+            const result = await this.withConnection(async (client) => {
+                const result = await client.query(query, [visitorId, userAgent || null]);
+                return result.rows[0];
+            });
+            return result;
         } catch (error) {
             logger.error('Error creating session:', error);
             throw error;
@@ -93,7 +120,9 @@ export class AnalyticsModel {
         `;
 
         try {
-            await this.pool.query(query, [endTime, sessionId]);
+            await this.withConnection(async (client) => {
+                await client.query(query, [endTime, sessionId]);
+            });
         } catch (error) {
             logger.error('Error updating session:', error);
             throw error;
@@ -117,7 +146,9 @@ export class AnalyticsModel {
         `;
 
         try {
-            await this.pool.query(query, [sessionId, visitorId, startTime, endTime, userAgent]);
+            await this.withConnection(async (client) => {
+                await client.query(query, [sessionId, visitorId, startTime, endTime, userAgent]);
+            });
         } catch (error) {
             logger.error('Error creating/updating session:', error);
             throw error;
@@ -136,18 +167,21 @@ export class AnalyticsModel {
         `;
 
         try {
-            const result = await this.pool.query(query, [
-                pageview.sessionId,
-                pageview.pageUrl,
-                pageview.pageTitle,
-                pageview.loadTime,
-                pageview.domContentLoaded,
-                pageview.firstPaint,
-                pageview.firstContentfulPaint,
-                pageview.startTime,
-                pageview.endTime
-            ]);
-            return result.rows[0].pageview_id;
+            const result = await this.withConnection(async (client) => {
+                const result = await client.query(query, [
+                    pageview.sessionId,
+                    pageview.pageUrl,
+                    pageview.pageTitle,
+                    pageview.loadTime,
+                    pageview.domContentLoaded,
+                    pageview.firstPaint,
+                    pageview.firstContentfulPaint,
+                    pageview.startTime,
+                    pageview.endTime
+                ]);
+                return result.rows[0].pageview_id;
+            });
+            return result;
         } catch (error) {
             logger.error('Error creating pageview:', error);
             throw error;
@@ -165,18 +199,20 @@ export class AnalyticsModel {
         `;
 
         try {
-            await this.pool.query(query, [
-                engagement.pageviewId,
-                engagement.areaId,
-                engagement.areaName,
-                engagement.areaType,
-                engagement.timeSpent,
-                engagement.interactionCount,
-                engagement.firstEngagement,
-                engagement.lastEngagement,
-                engagement.visibleTime,
-                engagement.viewportPercent
-            ]);
+            await this.withConnection(async (client) => {
+                await client.query(query, [
+                    engagement.pageviewId,
+                    engagement.areaId,
+                    engagement.areaName,
+                    engagement.areaType,
+                    engagement.timeSpent,
+                    engagement.interactionCount,
+                    engagement.firstEngagement,
+                    engagement.lastEngagement,
+                    engagement.visibleTime,
+                    engagement.viewportPercent
+                ]);
+            });
         } catch (error) {
             logger.error('Error creating area engagement:', error);
             throw error;
@@ -194,14 +230,16 @@ export class AnalyticsModel {
         `;
 
         try {
-            await this.pool.query(query, [
-                metrics.pageviewId,
-                metrics.deepestScroll,
-                metrics.scrollBreakpoints[25] ? new Date(metrics.scrollBreakpoints[25]) : null,
-                metrics.scrollBreakpoints[50] ? new Date(metrics.scrollBreakpoints[50]) : null,
-                metrics.scrollBreakpoints[75] ? new Date(metrics.scrollBreakpoints[75]) : null,
-                metrics.scrollBreakpoints[100] ? new Date(metrics.scrollBreakpoints[100]) : null
-            ]);
+            await this.withConnection(async (client) => {
+                await client.query(query, [
+                    metrics.pageviewId,
+                    metrics.deepestScroll,
+                    metrics.scrollBreakpoints[25] ? new Date(metrics.scrollBreakpoints[25]) : null,
+                    metrics.scrollBreakpoints[50] ? new Date(metrics.scrollBreakpoints[50]) : null,
+                    metrics.scrollBreakpoints[75] ? new Date(metrics.scrollBreakpoints[75]) : null,
+                    metrics.scrollBreakpoints[100] ? new Date(metrics.scrollBreakpoints[100]) : null
+                ]);
+            });
         } catch (error) {
             logger.error('Error creating scroll metrics:', error);
             throw error;
@@ -219,15 +257,17 @@ export class AnalyticsModel {
         `;
 
         try {
-            await this.pool.query(query, [
-                interaction.pageviewId,
-                interaction.areaId,
-                interaction.interactionType,
-                interaction.targetElement,
-                interaction.xCoordinate,
-                interaction.yCoordinate,
-                interaction.recordedAt
-            ]);
+            await this.withConnection(async (client) => {
+                await client.query(query, [
+                    interaction.pageviewId,
+                    interaction.areaId,
+                    interaction.interactionType,
+                    interaction.targetElement,
+                    interaction.xCoordinate,
+                    interaction.yCoordinate,
+                    interaction.recordedAt
+                ]);
+            });
         } catch (error) {
             logger.error('Error creating interaction:', error);
             throw error;
@@ -244,13 +284,15 @@ export class AnalyticsModel {
         `;
 
         try {
-            await this.pool.query(query, [
-                form.pageviewId,
-                form.formName,
-                form.totalTimeSpent,
-                form.completed,
-                form.submittedAt
-            ]);
+            await this.withConnection(async (client) => {
+                await client.query(query, [
+                    form.pageviewId,
+                    form.formName,
+                    form.totalTimeSpent,
+                    form.completed,
+                    form.submittedAt
+                ]);
+            });
         } catch (error) {
             logger.error('Error creating form analytics:', error);
             throw error;
@@ -327,183 +369,201 @@ export class AnalyticsModel {
 
             const [overview, areas, devices, browsers, hourly, recentSessions] = await Promise.all([
                 // Overview statistics
-                this.pool.query(`
-                    SELECT 
-                        COUNT(DISTINCT s.session_id) as total_sessions,
-                        COUNT(DISTINCT p.pageview_id) as total_pageviews,
-                        COUNT(DISTINCT i.interaction_id) as total_interactions,
-                        AVG(EXTRACT(EPOCH FROM (s.end_time - s.start_time))) as avg_session_time
-                    FROM sessions s
-                    LEFT JOIN pageviews p ON s.session_id = p.session_id
-                    LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
-                    WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                    AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                    ${pageFilterCondition}
-                `, params),
+                this.withConnection(async (client) => {
+                    const result = await client.query(`
+                        SELECT 
+                            COUNT(DISTINCT s.session_id) as total_sessions,
+                            COUNT(DISTINCT p.pageview_id) as total_pageviews,
+                            COUNT(DISTINCT i.interaction_id) as total_interactions,
+                            AVG(EXTRACT(EPOCH FROM (s.end_time - s.start_time))) as avg_session_time
+                        FROM sessions s
+                        LEFT JOIN pageviews p ON s.session_id = p.session_id
+                        LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
+                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        ${pageFilterCondition}
+                    `, params);
+                    return result.rows[0];
+                }),
 
                 // Area statistics
-                this.pool.query(`
-                    SELECT 
-                        ae.area_name,
-                        COUNT(DISTINCT s.visitor_id) as visitor_count,
-                        AVG(ae.time_spent) as avg_time_spent
-                    FROM area_engagements ae
-                    JOIN pageviews p ON ae.pageview_id = p.pageview_id
-                    JOIN sessions s ON p.session_id = s.session_id
-                    WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                    AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                    ${pageFilterCondition}
-                    GROUP BY ae.area_name
-                    ORDER BY visitor_count DESC
-                `, params),
+                this.withConnection(async (client) => {
+                    const result = await client.query(`
+                        SELECT 
+                            ae.area_name,
+                            COUNT(DISTINCT s.visitor_id) as visitor_count,
+                            AVG(ae.time_spent) as avg_time_spent
+                        FROM area_engagements ae
+                        JOIN pageviews p ON ae.pageview_id = p.pageview_id
+                        JOIN sessions s ON p.session_id = s.session_id
+                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        ${pageFilterCondition}
+                        GROUP BY ae.area_name
+                        ORDER BY visitor_count DESC
+                    `, params);
+                    return result.rows;
+                }),
 
                 // Device statistics
-                this.pool.query(`
-                    SELECT 
-                        COALESCE(
-                            CASE 
-                                WHEN s.user_agent LIKE '%Mobile%' THEN 'mobile'
-                                WHEN s.user_agent LIKE '%Tablet%' THEN 'tablet'
-                                ELSE 'desktop'
-                            END,
-                            'unknown'
-                        ) as device_type,
-                        COUNT(DISTINCT s.session_id) as session_count
-                    FROM sessions s
-                    LEFT JOIN pageviews p ON s.session_id = p.session_id
-                    WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                    AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                    ${pageFilterCondition}
-                    GROUP BY device_type
-                    ORDER BY session_count DESC
-                `, params),
+                this.withConnection(async (client) => {
+                    const result = await client.query(`
+                        SELECT 
+                            COALESCE(
+                                CASE 
+                                    WHEN s.user_agent LIKE '%Mobile%' THEN 'mobile'
+                                    WHEN s.user_agent LIKE '%Tablet%' THEN 'tablet'
+                                    ELSE 'desktop'
+                                END,
+                                'unknown'
+                            ) as device_type,
+                            COUNT(DISTINCT s.session_id) as session_count
+                        FROM sessions s
+                        LEFT JOIN pageviews p ON s.session_id = p.session_id
+                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        ${pageFilterCondition}
+                        GROUP BY device_type
+                        ORDER BY session_count DESC
+                    `, params);
+                    return result.rows;
+                }),
 
                 // Browser statistics
-                this.pool.query(`
-                    SELECT 
-                        COALESCE(
-                            CASE 
-                                WHEN s.user_agent LIKE '%Chrome%' THEN 'Chrome'
-                                WHEN s.user_agent LIKE '%Firefox%' THEN 'Firefox'
-                                WHEN s.user_agent LIKE '%Safari%' THEN 'Safari'
-                                WHEN s.user_agent LIKE '%Edge%' THEN 'Edge'
-                                ELSE 'Other'
-                            END,
-                            'unknown'
-                        ) as browser,
-                        COALESCE(
-                            REGEXP_REPLACE(
+                this.withConnection(async (client) => {
+                    const result = await client.query(`
+                        SELECT 
+                            COALESCE(
                                 CASE 
-                                    WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
-                                    WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
-                                    WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
-                                    WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
+                                    WHEN s.user_agent LIKE '%Chrome%' THEN 'Chrome'
+                                    WHEN s.user_agent LIKE '%Firefox%' THEN 'Firefox'
+                                    WHEN s.user_agent LIKE '%Safari%' THEN 'Safari'
+                                    WHEN s.user_agent LIKE '%Edge%' THEN 'Edge'
+                                    ELSE 'Other'
                                 END,
-                                '[^0-9]', '', 'g'
-                            ),
-                            'unknown'
-                        ) as version,
-                        COUNT(DISTINCT s.session_id) as session_count
-                    FROM sessions s
-                    LEFT JOIN pageviews p ON s.session_id = p.session_id
-                    WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                    AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                    ${pageFilterCondition}
-                    GROUP BY browser, version
-                    ORDER BY session_count DESC
-                `, params),
+                                'unknown'
+                            ) as browser,
+                            COALESCE(
+                                REGEXP_REPLACE(
+                                    CASE 
+                                        WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
+                                        WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
+                                        WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
+                                        WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
+                                    END,
+                                    '[^0-9]', '', 'g'
+                                ),
+                                'unknown'
+                            ) as version,
+                            COUNT(DISTINCT s.session_id) as session_count
+                        FROM sessions s
+                        LEFT JOIN pageviews p ON s.session_id = p.session_id
+                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        ${pageFilterCondition}
+                        GROUP BY browser, version
+                        ORDER BY session_count DESC
+                    `, params);
+                    return result.rows;
+                }),
 
                 // Hourly statistics
-                this.pool.query(`
-                    SELECT 
-                        EXTRACT(HOUR FROM s.start_time) as hour,
-                        COUNT(DISTINCT s.session_id) as session_count,
-                        COUNT(DISTINCT p.pageview_id) as pageview_count
-                    FROM sessions s
-                    LEFT JOIN pageviews p ON s.session_id = p.session_id
-                    WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                    AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                    ${pageFilterCondition}
-                    GROUP BY hour
-                    ORDER BY hour
-                `, params),
+                this.withConnection(async (client) => {
+                    const result = await client.query(`
+                        SELECT 
+                            EXTRACT(HOUR FROM s.start_time) as hour,
+                            COUNT(DISTINCT s.session_id) as session_count,
+                            COUNT(DISTINCT p.pageview_id) as pageview_count
+                        FROM sessions s
+                        LEFT JOIN pageviews p ON s.session_id = p.session_id
+                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        ${pageFilterCondition}
+                        GROUP BY hour
+                        ORDER BY hour
+                    `, params);
+                    return result.rows;
+                }),
 
                 // Recent sessions
-                this.pool.query(`
-                    SELECT 
-                        s.session_id,
-                        s.start_time,
-                        COALESCE(
-                            CASE 
-                                WHEN s.user_agent LIKE '%Mobile%' THEN 'mobile'
-                                WHEN s.user_agent LIKE '%Tablet%' THEN 'tablet'
-                                ELSE 'desktop'
-                            END,
-                            'unknown'
-                        ) as device_type,
-                        COALESCE(
-                            CASE 
-                                WHEN s.user_agent LIKE '%Chrome%' THEN 'Chrome'
-                                WHEN s.user_agent LIKE '%Firefox%' THEN 'Firefox'
-                                WHEN s.user_agent LIKE '%Safari%' THEN 'Safari'
-                                WHEN s.user_agent LIKE '%Edge%' THEN 'Edge'
-                                ELSE 'Other'
-                            END,
-                            'unknown'
-                        ) as browser_name,
-                        COALESCE(
-                            REGEXP_REPLACE(
+                this.withConnection(async (client) => {
+                    const result = await client.query(`
+                        SELECT 
+                            s.session_id,
+                            s.start_time,
+                            COALESCE(
                                 CASE 
-                                    WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
-                                    WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
-                                    WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
-                                    WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
+                                    WHEN s.user_agent LIKE '%Mobile%' THEN 'mobile'
+                                    WHEN s.user_agent LIKE '%Tablet%' THEN 'tablet'
+                                    ELSE 'desktop'
                                 END,
-                                '[^0-9]', '', 'g'
-                            ),
-                            'unknown'
-                        ) as browser_version,
-                        COUNT(DISTINCT p.pageview_id) as pageviews,
-                        COUNT(DISTINCT i.interaction_id) as total_interactions
-                    FROM sessions s
-                    LEFT JOIN pageviews p ON s.session_id = p.session_id
-                    LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
-                    WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                    AND ($2::timestamp IS NULL OR s.start_time <= $2)
-                    ${pageFilterCondition}
-                    GROUP BY s.session_id, s.start_time, s.user_agent
-                    ORDER BY s.start_time DESC
-                    LIMIT 10
-                `, params)
+                                'unknown'
+                            ) as device_type,
+                            COALESCE(
+                                CASE 
+                                    WHEN s.user_agent LIKE '%Chrome%' THEN 'Chrome'
+                                    WHEN s.user_agent LIKE '%Firefox%' THEN 'Firefox'
+                                    WHEN s.user_agent LIKE '%Safari%' THEN 'Safari'
+                                    WHEN s.user_agent LIKE '%Edge%' THEN 'Edge'
+                                    ELSE 'Other'
+                                END,
+                                'unknown'
+                            ) as browser_name,
+                            COALESCE(
+                                REGEXP_REPLACE(
+                                    CASE 
+                                        WHEN s.user_agent LIKE '%Chrome/%' THEN SUBSTRING(s.user_agent FROM 'Chrome/([0-9]+)')
+                                        WHEN s.user_agent LIKE '%Firefox/%' THEN SUBSTRING(s.user_agent FROM 'Firefox/([0-9]+)')
+                                        WHEN s.user_agent LIKE '%Safari/%' THEN SUBSTRING(s.user_agent FROM 'Safari/([0-9]+)')
+                                        WHEN s.user_agent LIKE '%Edge/%' THEN SUBSTRING(s.user_agent FROM 'Edge/([0-9]+)')
+                                    END,
+                                    '[^0-9]', '', 'g'
+                                ),
+                                'unknown'
+                            ) as browser_version,
+                            COUNT(DISTINCT p.pageview_id) as pageviews,
+                            COUNT(DISTINCT i.interaction_id) as total_interactions
+                        FROM sessions s
+                        LEFT JOIN pageviews p ON s.session_id = p.session_id
+                        LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
+                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
+                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        ${pageFilterCondition}
+                        GROUP BY s.session_id, s.start_time, s.user_agent
+                        ORDER BY s.start_time DESC
+                        LIMIT 10
+                    `, params);
+                    return result.rows;
+                })
             ]);
 
             return {
                 overview: {
-                    total_sessions: parseInt(overview.rows[0].total_sessions) || 0,
-                    total_pageviews: parseInt(overview.rows[0].total_pageviews) || 0,
-                    total_interactions: parseInt(overview.rows[0].total_interactions) || 0,
-                    avg_session_time: parseFloat(overview.rows[0].avg_session_time) || 0
+                    total_sessions: parseInt(overview.total_sessions) || 0,
+                    total_pageviews: parseInt(overview.total_pageviews) || 0,
+                    total_interactions: parseInt(overview.total_interactions) || 0,
+                    avg_session_time: parseFloat(overview.avg_session_time) || 0
                 },
-                areas: areas.rows.map(row => ({
+                areas: areas.map(row => ({
                     area_name: row.area_name,
                     visitor_count: parseInt(row.visitor_count),
                     avg_time_spent: parseFloat(row.avg_time_spent)
                 })),
-                devices: devices.rows.map(row => ({
+                devices: devices.map(row => ({
                     device_type: row.device_type,
                     session_count: parseInt(row.session_count)
                 })),
-                browsers: browsers.rows.map(row => ({
+                browsers: browsers.map(row => ({
                     browser: row.browser,
                     version: row.version,
                     session_count: parseInt(row.session_count)
                 })),
-                hourly: hourly.rows.map(row => ({
+                hourly: hourly.map(row => ({
                     hour: parseInt(row.hour),
                     session_count: parseInt(row.session_count),
                     pageview_count: parseInt(row.pageview_count)
                 })),
-                recent_sessions: recentSessions.rows.map(row => ({
+                recent_sessions: recentSessions.map(row => ({
                     session_id: row.session_id,
                     start_time: row.start_time,
                     device_type: row.device_type,
@@ -535,8 +595,11 @@ export class AnalyticsModel {
         `;
 
         try {
-            const result = await this.pool.query(query, [visitorId]);
-            return result.rows;
+            const result = await this.withConnection(async (client) => {
+                const result = await client.query(query, [visitorId]);
+                return result.rows;
+            });
+            return result;
         } catch (error) {
             logger.error('Error getting visitor sessions:', error);
             throw error;
