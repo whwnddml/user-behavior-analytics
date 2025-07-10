@@ -23,22 +23,36 @@ const corsOptions = {
             'https://whwnddml.github.io',
             'https://*.brandiup.com'
         ];
+        
+        logger.info(`Incoming request from origin: ${origin}`);
+        
         // origin이 undefined인 경우는 같은 출처의 요청
-        if (!origin || allowedOrigins.some(allowed => {
+        if (!origin) {
+            logger.info('Same origin request allowed');
+            callback(null, true);
+            return;
+        }
+
+        const isAllowed = allowedOrigins.some(allowed => {
             if (allowed.includes('*')) {
                 const pattern = new RegExp('^' + allowed.replace('*', '.*') + '$');
                 return pattern.test(origin);
             }
             return allowed === origin;
-        })) {
+        });
+
+        if (isAllowed) {
+            logger.info(`Origin ${origin} is allowed`);
             callback(null, true);
         } else {
+            logger.warn(`Origin ${origin} is not allowed`);
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+    exposedHeaders: ['Content-Length', 'Content-Type']
 };
 
 // 데이터베이스 연결
