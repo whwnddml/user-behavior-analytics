@@ -11,9 +11,13 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- API 설정 -->
+    <script src="js/api-config.js"></script>
+    
     <!-- 커스텀 스타일 -->
     <link href="css/common.css" rel="stylesheet">
     <link href="css/analytics-dashboard.css" rel="stylesheet">
+
     <style>
         /* 반응형 테이블 스타일 */
         .table-responsive {
@@ -476,7 +480,7 @@
                 if (endDate) params.append('endDate', `${endDate}T23:59:59`);
                 params.append('page', pageFilter); // 페이지 필터는 항상 포함
 
-                const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard/stats?${params}`);
+                const response = await fetch(`${API_BASE_URL}/dashboard/stats?${params}`);
                 const data = await response.json();
 
                 console.log('Received data:', data);
