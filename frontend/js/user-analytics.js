@@ -3,11 +3,19 @@
  * 백엔드 API와 연동하여 실시간 사용자 데이터를 수집하고 전송합니다.
  */
 
+// API 엔드포인트 설정
+// 주의: 운영 서버 주소는 절대 변경하지 마세요! (Render 배포 주소)
+if (!window.API_BASE_URL) {
+    window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3000'
+        : 'https://user-behavior-analytics.onrender.com';
+}
+
 class UserAnalytics {
     constructor(config = {}) {
         // 기본 설정
         this.config = {
-            apiEndpoint: config.apiEndpoint || API_BASE_URL,
+            apiEndpoint: config.apiEndpoint || window.API_BASE_URL,
             sendInterval: config.sendInterval || 30000, // 30초마다 전송
             maxRetries: config.maxRetries || 3,
             debug: config.debug || false,
