@@ -252,21 +252,19 @@ const API_CONFIG = {
     }
 };
 
-// 에러 표시 함수
+// 에러 메시지 표시 함수
 function showError(message) {
-    const errorContainer = document.getElementById('error-container');
-    if (!errorContainer) {
-        const container = document.createElement('div');
-        container.id = 'error-container';
-        container.className = 'error-message';
-        document.body.appendChild(container);
+    const errorDiv = document.getElementById('errorMessage');
+    if (!errorDiv) {
+        const div = document.createElement('div');
+        div.id = 'errorMessage';
+        div.style.cssText = 'position: fixed; top: 20px; right: 20px; background-color: #ff5555; color: white; padding: 15px; border-radius: 5px; z-index: 1000;';
+        document.body.appendChild(div);
     }
-    
-    errorContainer.textContent = message;
-    errorContainer.style.display = 'block';
-    
+    const messageDiv = document.getElementById('errorMessage');
+    messageDiv.textContent = message;
     setTimeout(() => {
-        errorContainer.style.display = 'none';
+        messageDiv.remove();
     }, 5000);
 }
 
@@ -296,15 +294,21 @@ async function fetchAPI(endpoint, params = {}) {
         const queryString = new URLSearchParams(params).toString();
         const url = `${window.API_CONFIG.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
         
+        console.log('API 요청:', url);
         const response = await fetch(url);
-        const data = await response.json();
         
+        if (!response.ok) {
+            throw new Error(`API 요청 실패 (${response.status}): ${response.statusText}`);
+        }
+        
+        const data = await response.json();
         if (!data.success) {
             throw new Error(data.message || '데이터를 불러오는데 실패했습니다.');
         }
         
         return data.data;
     } catch (error) {
+        console.error('API 호출 오류:', error);
         showError(`API 호출 실패: ${error.message}`);
         throw error;
     }
@@ -432,13 +436,40 @@ function initializeCharts() {
 // 대시보드 데이터 로드
 async function loadDashboardData() {
     try {
+        // 날짜 필터 입력값 가져오기
+        const dateFromInput = document.getElementById('date-from');
+        const dateToInput = document.getElementById('date-to');
+        
+        // 기본값: 지난 30일
         const today = new Date();
-        const lastMonth = new Date(today.setMonth(today.getMonth() - 1));
+        const lastMonth = new Date();
+        lastMonth.setMonth(today.getMonth() - 1);
+        
+        // 입력된 날짜가 있으면 사용, 없으면 기본값 사용
+        const dateFrom = dateFromInput?.value ? new Date(dateFromInput.value) : lastMonth;
+        const dateTo = dateToInput?.value ? new Date(dateToInput.value) : today;
+        
+        // 미래 날짜 체크
+        if (dateTo > today) {
+            showError('종료일은 현재 날짜보다 클 수 없습니다.');
+            return;
+        }
+        
+        if (dateFrom > dateTo) {
+            showError('시작일은 종료일보다 클 수 없습니다.');
+            return;
+        }
         
         const params = {
-            dateFrom: formatDate(lastMonth),
-            dateTo: formatDate(new Date())
+            dateFrom: formatDate(dateFrom),
+            dateTo: formatDate(dateTo)
         };
+        
+        // 페이지 필터 적용
+        const pageFilter = document.getElementById('page-filter');
+        if (pageFilter?.value) {
+            params.page = pageFilter.value;
+        }
         
         const [
             stats,
@@ -446,10 +477,10 @@ async function loadDashboardData() {
             hourlyStats,
             deviceStats
         ] = await Promise.all([
-            fetchAPI(window.API_CONFIG.endpoints.stats, params),
-            fetchAPI(window.API_CONFIG.endpoints.areaStats, params),
-            fetchAPI(window.API_CONFIG.endpoints.hourlyStats, params),
-            fetchAPI(window.API_CONFIG.endpoints.deviceStats, params)
+            fetchAPI('/api/analytics/dashboard/stats', params),
+            fetchAPI('/api/analytics/area-stats', params),
+            fetchAPI('/api/analytics/hourly-stats', params),
+            fetchAPI('/api/analytics/device-stats', params)
         ]);
         
         updateCharts({
