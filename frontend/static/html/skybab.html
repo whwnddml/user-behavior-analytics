@@ -212,17 +212,20 @@
         script.src = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:8080/js/user-analytics.js'
             : 'https://whwnddml.github.io/user-behavior-analytics/js/user-analytics.js';
+        
+        // 스크립트 로드 완료 후 초기화
+        script.onload = function() {
+            // UserAnalytics 초기화 (선택적 설정)
+            const analytics = new UserAnalytics({
+                debug: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1', // 로컬에서만 디버그 모드 활성화
+                sendInterval: 30000, // 30초마다 데이터 전송
+                enableHeatmap: true,
+                enableScrollTracking: true,
+                enableFormTracking: true
+            });
+        };
+        
         document.body.appendChild(script);
-    </script>
-	<script>
-        // UserAnalytics 초기화 (선택적 설정)
-        const analytics = new UserAnalytics({
-            debug: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1', // 로컬에서만 디버그 모드 활성화
-            sendInterval: 30000, // 30초마다 데이터 전송
-            enableHeatmap: true,
-            enableScrollTracking: true,
-            enableFormTracking: true
-        });
     </script>
 </body>
 </html>
