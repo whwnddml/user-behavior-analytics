@@ -37,11 +37,11 @@ CREATE TABLE IF NOT EXISTS area_engagements (
     area_id VARCHAR(50) NOT NULL,
     area_name VARCHAR(100) NOT NULL,
     area_type VARCHAR(50),
-    time_spent INTEGER,
+    time_spent BIGINT,
     interaction_count INTEGER DEFAULT 0,
     first_engagement TIMESTAMP WITH TIME ZONE,
     last_engagement TIMESTAMP WITH TIME ZONE,
-    visible_time INTEGER,
+    visible_time BIGINT,
     viewport_percent NUMERIC(5,2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

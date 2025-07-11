@@ -8,7 +8,7 @@
 if (!window.API_BASE_URL) {
     window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:3000'
-        : 'https://user-behavior-analytics-api.onrender.com';
+        : 'https://user-behavior-analytics.onrender.com';
 }
 
 class UserAnalytics {

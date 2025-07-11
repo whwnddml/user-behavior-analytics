@@ -7,7 +7,7 @@ export const isProduction = process.env.NODE_ENV === 'production';
 export const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/analytics';
 
 export const config = {
-    port: process.env.PORT || 3000,
+    port: process.env.PORT || 10000,  // Render uses port 10000
     host: process.env.HOST || 'localhost',
     database: {
         url: DATABASE_URL,
@@ -19,7 +19,7 @@ export const config = {
     },
     cors: {
         allowedOrigins: isProduction
-            ? ['https://whwnddml.github.io', 'https://*.github.io', 'https://*.brandiup.com']
+            ? ['https://whwnddml.github.io', 'https://*.brandiup.com']
             : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://localhost:8080', 'null']
     },
     logging: {
