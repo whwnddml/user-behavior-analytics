@@ -19,7 +19,12 @@ export const config = {
     },
     cors: {
         allowedOrigins: isProduction
-            ? ['https://whwnddml.github.io', 'https://*.brandiup.com']
+            ? [
+                'https://whwnddml.github.io',
+                'https://skybab.brandiup.com',
+                'https://brandiup.com',
+                'https://www.brandiup.com'
+              ]
             : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://localhost:8080', 'null']
     },
     logging: {

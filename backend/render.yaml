@@ -15,7 +15,7 @@ services:
           name: uba_zfqs
           property: connectionString
       - key: CORS_ORIGIN
-        value: "https://whwnddml.github.io,https://*.brandiup.com"
+        value: "https://whwnddml.github.io,https://skybab.brandiup.com,https://brandiup.com,https://www.brandiup.com"
       - key: LOG_LEVEL
         value: "info"
     disk:
