@@ -290,6 +290,17 @@
             timeChart: null
         };
 
+        // 체류시간 포맷팅 함수
+        function formatDuration(seconds) {
+            if (seconds < 60) {
+                return `${seconds.toFixed(1)}초`;
+            } else if (seconds < 3600) {
+                return `${(seconds / 60).toFixed(1)}분`;
+            } else {
+                return `${(seconds / 3600).toFixed(1)}시간`;
+            }
+        }
+
         let retryCount = 0;
         const MAX_RETRIES = 3;
         const RETRY_DELAY = 5000; // 5초
@@ -312,7 +323,7 @@
                             yAxisID: 'y'
                         },
                         {
-                            label: '평균 체류시간(초)',
+                            label: '평균 체류시간',
                             data: [],
                             type: 'line',
                             borderColor: 'rgba(255, 99, 132, 1)',
@@ -347,10 +358,15 @@
                             position: 'right',
                             title: {
                                 display: true,
-                                text: '평균 체류시간(초)'
+                                text: '평균 체류시간'
                             },
                             grid: {
                                 drawOnChartArea: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatDuration(value);
+                                }
                             }
                         },
                         y2: {
@@ -362,6 +378,20 @@
                             },
                             grid: {
                                 drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.raw;
+                                    if (label === '평균 체류시간') {
+                                        return `${label}: ${formatDuration(value)}`;
+                                    }
+                                    return `${label}: ${value}`;
+                                }
                             }
                         }
                     }
