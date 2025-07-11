@@ -318,8 +318,16 @@ export class AnalyticsModel {
         // 페이지 필터 조건 설정
         let pageFilterCondition = '';
         if (pageFilter) {
-            pageFilterCondition = 'AND TRIM(BOTH \'/\' FROM p.page_url) = TRIM(BOTH \'/\' FROM $' + (params.length + 1) + ')';
+            // URL 경로 정규화: 앞뒤 슬래시 제거 및 중복 슬래시 처리
+            pageFilterCondition = `AND regexp_replace(regexp_replace(p.page_url, '^/+|/+$', ''), '/+', '/') = regexp_replace(regexp_replace($${params.length + 1}, '^/+|/+$', ''), '/+', '/')`;
             params.push(pageFilter);
+            
+            // 로깅 추가
+            logger.info('Page filter condition:', {
+                condition: pageFilterCondition,
+                pageFilter,
+                normalizedFilter: pageFilter.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/')
+            });
         }
 
         try {
@@ -344,11 +352,16 @@ export class AnalyticsModel {
 
                 // Area statistics
                 this.withConnection(async (client) => {
-                    const result = await client.query(`
+                    const areaQuery = `
                         SELECT 
                             ae.area_name,
                             COUNT(DISTINCT s.visitor_id) as visitor_count,
-                            AVG(ae.time_spent) as avg_time_spent
+                            AVG(ae.time_spent) as avg_time_spent,
+                            SUM(ae.time_spent) as total_time_spent,
+                            AVG(ae.viewport_percent) as avg_viewport_percent,
+                            COUNT(DISTINCT ae.pageview_id) as view_count,
+                            MIN(s.start_time) as first_view,
+                            MAX(s.start_time) as last_view
                         FROM area_engagements ae
                         JOIN pageviews p ON ae.pageview_id = p.pageview_id
                         JOIN sessions s ON p.session_id = s.session_id
@@ -356,8 +369,25 @@ export class AnalyticsModel {
                         AND ($2::timestamp IS NULL OR s.start_time <= $2)
                         ${pageFilterCondition}
                         GROUP BY ae.area_name
-                        ORDER BY visitor_count DESC
-                    `, params);
+                        ORDER BY total_time_spent DESC
+                    `;
+
+                    // 쿼리 실행 전 로깅
+                    logger.info('Executing area statistics query:', {
+                        query: areaQuery,
+                        params,
+                        pageFilterCondition
+                    });
+
+                    const result = await client.query(areaQuery, params);
+
+                    // 결과 로깅
+                    logger.info('Area statistics query result:', {
+                        rowCount: result.rowCount,
+                        firstRow: result.rows[0],
+                        params
+                    });
+
                     return result.rows;
                 }),
 
@@ -515,7 +545,10 @@ export class AnalyticsModel {
                 areas: areas.map(row => ({
                     area_name: row.area_name,
                     visitor_count: parseInt(row.visitor_count),
-                    avg_time_spent: parseFloat(row.avg_time_spent)
+                    avg_time_spent: parseFloat(row.avg_time_spent),
+                    total_time_spent: parseFloat(row.total_time_spent),
+                    avg_viewport_percent: parseFloat(row.avg_viewport_percent),
+                    view_count: parseInt(row.view_count)
                 })),
                 devices: devices.map(row => ({
                     device_type: row.device_type,
