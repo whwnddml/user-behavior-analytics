@@ -283,7 +283,62 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- 분석 스크립트 -->
+    <!-- 기본 설정 및 초기화 -->
+    <script>
+        // API 설정
+        const hostname = window.location.hostname;
+        const API_CONFIG = {
+            baseUrl: hostname === 'localhost' || hostname === '127.0.0.1'
+                ? 'http://localhost:3000/api/analytics'
+                : 'https://user-behavior-analytics.onrender.com/api/analytics',
+            endpoints: {
+                stats: '/dashboard/stats',
+                sessions: '/dashboard/sessions',
+                areaStats: '/area-stats',
+                hourlyStats: '/hourly-stats',
+                deviceStats: '/device-stats',
+                performanceStats: '/performance-stats'
+            }
+        };
+
+        // 차트 객체 저장소
+        let charts = {
+            areaChart: null,
+            deviceChart: null,
+            timeChart: null
+        };
+
+        // 에러 표시 함수
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            if (!errorContainer) {
+                const container = document.createElement('div');
+                container.id = 'error-container';
+                container.className = 'error-message';
+                document.body.appendChild(container);
+            }
+            
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+            
+            setTimeout(() => {
+                errorContainer.style.display = 'none';
+            }, 5000);
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCharts();
+            loadDashboardData();
+            
+            // 필터 변경 이벤트
+            ['date-from', 'date-to', 'page-filter'].forEach(id => {
+                document.getElementById(id)?.addEventListener('change', loadDashboardData);
+            });
+        });
+    </script>
+    
+    <!-- 분석 유틸리티 및 차트 관련 함수들 -->
     <script src="js/analytics.js"></script>
 
     </div>

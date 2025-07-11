@@ -261,6 +261,17 @@ function formatNumber(number, decimals = 0) {
     return Number(number).toFixed(decimals);
 }
 
+// 체류시간 포맷팅 함수
+function formatDuration(seconds) {
+    if (seconds < 60) {
+        return `${seconds.toFixed(1)}초`;
+    } else if (seconds < 3600) {
+        return `${(seconds / 60).toFixed(1)}분`;
+    } else {
+        return `${(seconds / 3600).toFixed(1)}시간`;
+    }
+}
+
 // API 호출 함수
 async function fetchAPI(endpoint, params = {}) {
     try {
@@ -279,42 +290,6 @@ async function fetchAPI(endpoint, params = {}) {
         showError(`API 호출 실패: ${error.message}`);
         throw error;
     }
-}
-
-// 체류시간 포맷팅 함수
-function formatDuration(seconds) {
-    if (seconds < 60) {
-        return `${seconds.toFixed(1)}초`;
-    } else if (seconds < 3600) {
-        return `${(seconds / 60).toFixed(1)}분`;
-    } else {
-        return `${(seconds / 3600).toFixed(1)}시간`;
-    }
-}
-
-// 차트 객체 저장소
-let charts = {
-    areaChart: null,
-    deviceChart: null,
-    timeChart: null
-};
-
-// 에러 표시 함수 개선
-function showError(message) {
-    const errorContainer = document.getElementById('error-container');
-    if (!errorContainer) {
-        const container = document.createElement('div');
-        container.id = 'error-container';
-        container.className = 'error-message';
-        document.body.appendChild(container);
-    }
-    
-    errorContainer.textContent = message;
-    errorContainer.style.display = 'block';
-    
-    setTimeout(() => {
-        errorContainer.style.display = 'none';
-    }, 5000);
 }
 
 // 차트 데이터 없음 표시
@@ -459,7 +434,7 @@ async function loadDashboardData() {
             fetchAPI(API_CONFIG.endpoints.deviceStats, params)
         ]);
         
-        updateDashboard({
+        updateCharts({
             stats,
             areaStats,
             hourlyStats,
