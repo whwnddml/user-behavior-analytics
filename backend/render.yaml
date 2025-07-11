@@ -18,6 +18,8 @@ services:
         value: "https://whwnddml.github.io,https://skybab.brandiup.com,https://brandiup.com,https://www.brandiup.com"
       - key: LOG_LEVEL
         value: "info"
+      - key: FORCE_INIT
+        value: "false"
     disk:
       name: logs
       mountPath: /opt/render/project/src/backend/logs

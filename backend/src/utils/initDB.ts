@@ -1,31 +1,29 @@
-import { pool } from '../config/database';
-import fs from 'fs';
-import path from 'path';
+import { DatabaseMigration } from './migration';
+import { logger } from '../config/logger';
 
-export const initializeDatabase = async (): Promise<void> => {
+export const initializeDatabase = async (force: boolean = false): Promise<void> => {
   try {
-    console.log('🔄 데이터베이스 초기화 시작...');
+    logger.info('🔄 데이터베이스 초기화 시작...');
     
-    // SQL 파일 읽기
-    const sqlPath = path.join(__dirname, '../../database/init/01-create-tables.sql');
-    const sql = fs.readFileSync(sqlPath, 'utf8');
+    const migration = new DatabaseMigration();
+    await migration.initializeDatabase(force);
     
-    // SQL 실행
-    await pool.query(sql);
-    
-    console.log('✅ 데이터베이스 초기화 완료');
+    logger.info('✅ 데이터베이스 초기화 완료');
   } catch (error) {
-    console.error('❌ 데이터베이스 초기화 실패:', error);
+    logger.error('❌ 데이터베이스 초기화 실패:', error);
     throw error;
   }
 };
 
 // 스크립트로 직접 실행될 때
 if (require.main === module) {
-  initializeDatabase()
+  // FORCE_INIT 환경변수가 true일 때만 강제 초기화
+  const force = process.env.FORCE_INIT === 'true';
+  
+  initializeDatabase(force)
     .then(() => process.exit(0))
     .catch((error) => {
-      console.error('Migration failed:', error);
+      logger.error('Migration failed:', error);
       process.exit(1);
     });
 } 
