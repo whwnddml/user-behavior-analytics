@@ -280,6 +280,17 @@ async function fetchAPI(endpoint, params = {}) {
     }
 }
 
+// 체류시간 포맷팅 함수
+function formatDuration(seconds) {
+    if (seconds < 60) {
+        return `${seconds.toFixed(1)}초`;
+    } else if (seconds < 3600) {
+        return `${(seconds / 60).toFixed(1)}분`;
+    } else {
+        return `${(seconds / 3600).toFixed(1)}시간`;
+    }
+}
+
 // 차트 객체 저장소
 let charts = {
     areaChart: null,
@@ -333,7 +344,7 @@ function initializeCharts() {
             data: {
                 labels: [],
                 datasets: [{
-                    label: '평균 체류시간 (초)',
+                    label: '평균 체류시간',
                     data: [],
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
@@ -347,6 +358,22 @@ function initializeCharts() {
                     title: {
                         display: true,
                         text: '영역별 평균 체류시간'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `체류시간: ${formatDuration(context.raw)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return formatDuration(value);
+                            }
+                        }
                     }
                 }
             }
