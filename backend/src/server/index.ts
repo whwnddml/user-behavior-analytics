@@ -21,7 +21,36 @@ async function startServer() {
 
         // CORS 설정
         const corsOptions = {
-            origin: config.cors.allowedOrigins,
+            origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+                // origin이 undefined인 경우는 같은 도메인에서의 요청
+                if (!origin) {
+                    callback(null, true);
+                    return;
+                }
+
+                // 허용된 도메인 확인
+                const allowedOrigins = config.cors.allowedOrigins;
+                const isAllowed = allowedOrigins.some(allowedOrigin => {
+                    // 정확한 도메인 매칭
+                    if (origin === allowedOrigin) return true;
+                    
+                    // brandiup.com 서브도메인 매칭
+                    if (allowedOrigin.includes('brandiup.com') && 
+                        origin.endsWith('brandiup.com') && 
+                        origin.startsWith('https://')) {
+                        return true;
+                    }
+                    
+                    return false;
+                });
+
+                if (isAllowed) {
+                    callback(null, true);
+                } else {
+                    logger.warn(`Blocked request from unauthorized domain: ${origin}`);
+                    callback(new Error('Not allowed by CORS'));
+                }
+            },
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization'],
             credentials: true
