@@ -3,6 +3,20 @@
 -- 확장 기능 활성화
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- 스키마 버전 관리 테이블
+CREATE TABLE IF NOT EXISTS schema_versions (
+    version INTEGER PRIMARY KEY,
+    description TEXT NOT NULL,
+    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 초기 스키마 버전 설정
+INSERT INTO schema_versions (version, description)
+SELECT 1, '01-create-tables.sql'
+WHERE NOT EXISTS (
+    SELECT 1 FROM schema_versions WHERE version = 1
+);
+
 -- 세션 테이블
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,

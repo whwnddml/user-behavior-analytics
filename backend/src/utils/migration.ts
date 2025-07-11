@@ -122,11 +122,23 @@ export class DatabaseMigration {
                 await pool.query(dropSql);
             }
 
-            const createSqlPath = path.join(this.initPath, '01-create-tables.sql');
-            const createSql = await this.readSqlFile(createSqlPath);
-            await pool.query(createSql);
+            // Check if schema_versions table exists
+            const tableExists = await pool.query(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'schema_versions'
+                );
+            `);
 
-            // 마이그레이션 실행
+            if (!tableExists.rows[0].exists || force) {
+                logger.info('Initializing database with base schema...');
+                const createSqlPath = path.join(this.initPath, '01-create-tables.sql');
+                const createSql = await this.readSqlFile(createSqlPath);
+                await pool.query(createSql);
+            }
+
+            // Run any pending migrations
             await this.migrate();
             
             logger.info('Database initialization completed');
