@@ -8,10 +8,15 @@ export class DatabaseMigration {
     private readonly initPath: string;
 
     constructor() {
-        // 절대 경로로 변환
-        const rootDir = path.resolve(process.cwd(), 'backend');
+        // Check if we're in the Render environment
+        const isRender = process.env.RENDER === 'true';
+        
+        // In Render, we're already in the backend directory
+        const rootDir = isRender ? process.cwd() : path.resolve(process.cwd(), 'backend');
         this.migrationsPath = path.join(rootDir, 'database/migrations');
         this.initPath = path.join(rootDir, 'database/init');
+        
+        logger.info(`Database paths initialized - migrations: ${this.migrationsPath}, init: ${this.initPath}`);
     }
 
     /**
