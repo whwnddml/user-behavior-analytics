@@ -237,10 +237,11 @@ window.addEventListener('beforeunload', () => {
 setInterval(sendAnalytics, 5 * 60 * 1000);
 
 // API 설정
+const hostname = window.location.hostname;
 const API_CONFIG = {
-    baseUrl: process.env.NODE_ENV === 'production' 
-        ? 'https://api.your-domain.com/api/analytics'
-        : 'http://localhost:3000/api/analytics',
+    baseUrl: hostname === 'localhost' || hostname === '127.0.0.1'
+        ? 'http://localhost:3000/api/analytics'
+        : 'https://user-behavior-analytics.onrender.com/api/analytics',
     endpoints: {
         stats: '/dashboard/stats',
         sessions: '/dashboard/sessions',
