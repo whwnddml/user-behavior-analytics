@@ -206,11 +206,18 @@
 		</div>
 	</div>
 	<!-- 유저 분석 스크립트 -->
-	<script src="http://localhost:8080/js/user-analytics.js"></script>
+	<script>
+        // 환경에 따른 스크립트 로드
+        const script = document.createElement('script');
+        script.src = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:8080/js/user-analytics.js'
+            : 'https://whwnddml.github.io/user-behavior-analytics/js/user-analytics.js';
+        document.body.appendChild(script);
+    </script>
 	<script>
         // UserAnalytics 초기화 (선택적 설정)
         const analytics = new UserAnalytics({
-            debug: true, // 개발 중에는 디버그 모드 활성화
+            debug: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1', // 로컬에서만 디버그 모드 활성화
             sendInterval: 30000, // 30초마다 데이터 전송
             enableHeatmap: true,
             enableScrollTracking: true,
