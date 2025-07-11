@@ -8,7 +8,7 @@
 if (!window.API_BASE_URL) {
     window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:3000'
-        : 'https://user-behavior-analytics.onrender.com';
+        : 'https://user-behavior-analytics-api.onrender.com';
 }
 
 class UserAnalytics {
@@ -724,7 +724,7 @@ class UserAnalytics {
                 recordedAt: payload.interactionMap[0]?.recordedAt
             });
 
-            const response = await fetch(`${this.config.apiEndpoint}/collect`, {
+            const response = await fetch(`${this.config.apiEndpoint}/api/analytics/collect`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -806,7 +806,7 @@ class UserAnalytics {
      */
     async endSession() {
         try {
-            const response = await fetch(`${this.config.apiEndpoint}/session/end`, {
+            const response = await fetch(`${this.config.apiEndpoint}/api/analytics/session/end`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -833,12 +833,15 @@ class UserAnalytics {
         
         return {
             sessionId: this.analyticsData.sessionId,
-            loadTime: this.analyticsData.performance.loadTime,
-            scrollDepth: this.analyticsData.scrollMetrics.deepestScroll,
-            clickCount: this.trackingState.clickCount,
-            activeAreas,
-            formInteractions: this.analyticsData.formAnalytics.length,
-            totalInteractions: this.analyticsData.interactionMap.length
+            visitorId: this.analyticsData.visitorId,
+            pageUrl: this.analyticsData.pageUrl,
+            pageTitle: this.analyticsData.pageTitle,
+            userAgent: this.analyticsData.userAgent,
+            startTime: this.analyticsData.startTime,
+            performance: this.analyticsData.performance || {},
+            areaEngagements: this.analyticsData.areaEngagements || [],
+            interactionMap: this.analyticsData.interactionMap || [],
+            formAnalytics: this.analyticsData.formAnalytics || []
         };
     }
 
@@ -897,7 +900,9 @@ class UserAnalytics {
  */
 async function callAPI(endpoint, data, retries = 3) {
     const baseURL = window.API_BASE_URL;
-    const url = `${baseURL}/api/analytics${endpoint}`;
+    const url = endpoint.startsWith('/api/analytics') 
+        ? `${baseURL}${endpoint}` 
+        : `${baseURL}/api/analytics${endpoint}`;
     
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -935,7 +940,7 @@ async function callAPI(endpoint, data, retries = 3) {
 async function sendAnalyticsData(isBeforeUnload = false) {
     try {
         // 데이터베이스 연결 상태 확인
-        const healthCheck = await fetch(`${window.API_BASE_URL}/api/analytics/health`)
+        const healthCheck = await fetch(`${window.API_BASE_URL}/api/analytics/health/db`)
             .catch(() => ({ ok: false }));
             
         if (!healthCheck.ok) {
@@ -946,12 +951,13 @@ async function sendAnalyticsData(isBeforeUnload = false) {
             return;
         }
 
-        const data = getCurrentStats();
+        const data = window.UserAnalytics.getCurrentStats();
+        console.log('[UserAnalytics] Sending data:', JSON.stringify(data, null, 2));
         await callAPI('/collect', data);
         
         // 전송 성공 후 임시 데이터 초기화
         if (!isBeforeUnload) {
-            resetTransientData();
+            window.UserAnalytics.resetTransientData();
         }
     } catch (error) {
         console.error('Failed to send analytics data:', error);

@@ -162,11 +162,13 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             }
 
             // 스크롤 메트릭 저장
-            await analyticsModel.createScrollMetrics({
-                pageviewId,
-                deepestScroll: analyticsData.scrollMetrics.deepestScroll,
-                scrollBreakpoints: analyticsData.scrollMetrics.scrollDepthBreakpoints
-            });
+            if (analyticsData.scrollMetrics?.deepestScroll !== undefined) {
+                await analyticsModel.createScrollMetrics({
+                    pageviewId,
+                    deepestScroll: analyticsData.scrollMetrics.deepestScroll,
+                    scrollBreakpoints: analyticsData.scrollMetrics.scrollDepthBreakpoints || {}
+                });
+            }
 
             // 인터랙션 저장
             for (const interaction of analyticsData.interactionMap) {
