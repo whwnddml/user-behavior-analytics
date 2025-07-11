@@ -3,6 +3,14 @@
 -- 확장 기능 활성화
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- 기존 테이블 삭제
+DROP TABLE IF EXISTS form_field_analytics CASCADE;
+DROP TABLE IF EXISTS form_analytics CASCADE;
+DROP TABLE IF EXISTS interactions CASCADE;
+DROP TABLE IF EXISTS area_engagements CASCADE;
+DROP TABLE IF EXISTS pageviews CASCADE;
+DROP TABLE IF EXISTS sessions CASCADE;
+
 -- 세션 테이블
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
