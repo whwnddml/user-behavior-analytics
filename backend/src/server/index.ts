@@ -21,7 +21,7 @@ async function startServer() {
 
         // CORS 설정
         const corsOptions = {
-            origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+            origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
                 // origin이 undefined인 경우는 같은 도메인에서의 요청
                 if (!origin) {
                     callback(null, true);
@@ -34,11 +34,10 @@ async function startServer() {
                     // 정확한 도메인 매칭
                     if (origin === allowedOrigin) return true;
                     
-                    // brandiup.com 서브도메인 매칭
-                    if (allowedOrigin.includes('brandiup.com') && 
-                        origin.endsWith('brandiup.com') && 
-                        origin.startsWith('https://')) {
-                        return true;
+                    // 와일드카드 도메인 매칭 (예: https://*.brandiup.com)
+                    if (allowedOrigin.includes('*')) {
+                        const pattern = new RegExp('^' + allowedOrigin.replace('*', '.*') + '$');
+                        return pattern.test(origin);
                     }
                     
                     return false;

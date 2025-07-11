@@ -6,6 +6,16 @@ dotenv.config();
 export const isProduction = process.env.NODE_ENV === 'production';
 export const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/analytics';
 
+// CORS 허용 도메인 처리
+const parseCorsOrigins = (originsStr?: string): string[] => {
+    if (!originsStr) {
+        return isProduction 
+            ? ['https://whwnddml.github.io', 'https://*.brandiup.com'] 
+            : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://localhost:8080', 'null'];
+    }
+    return originsStr.split(',').map(origin => origin.trim());
+};
+
 export const config = {
     port: process.env.PORT || 10000,  // Render uses port 10000
     host: process.env.HOST || 'localhost',
@@ -18,14 +28,7 @@ export const config = {
         password: process.env.DB_PASSWORD || 'postgres'
     },
     cors: {
-        allowedOrigins: isProduction
-            ? [
-                'https://whwnddml.github.io',
-                'https://skybab.brandiup.com',
-                'https://brandiup.com',
-                'https://www.brandiup.com'
-              ]
-            : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://localhost:8080', 'null']
+        allowedOrigins: parseCorsOrigins(process.env.CORS_ORIGIN)
     },
     logging: {
         level: process.env.LOG_LEVEL || 'info'
