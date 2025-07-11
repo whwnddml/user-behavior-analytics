@@ -20,10 +20,6 @@ services:
         value: "info"
       - key: FORCE_INIT
         value: "false"
-    disk:
-      name: logs
-      mountPath: /opt/render/project/src/backend/logs
-      sizeGB: 1
 
 databases:
   - name: uba_zfqs
