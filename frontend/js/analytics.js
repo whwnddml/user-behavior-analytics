@@ -252,6 +252,24 @@ const API_CONFIG = {
     }
 };
 
+// 에러 표시 함수
+function showError(message) {
+    const errorContainer = document.getElementById('error-container');
+    if (!errorContainer) {
+        const container = document.createElement('div');
+        container.id = 'error-container';
+        container.className = 'error-message';
+        document.body.appendChild(container);
+    }
+    
+    errorContainer.textContent = message;
+    errorContainer.style.display = 'block';
+    
+    setTimeout(() => {
+        errorContainer.style.display = 'none';
+    }, 5000);
+}
+
 // 유틸리티 함수
 function formatDate(date) {
     return date.toISOString().split('T')[0];
@@ -276,7 +294,7 @@ function formatDuration(seconds) {
 async function fetchAPI(endpoint, params = {}) {
     try {
         const queryString = new URLSearchParams(params).toString();
-        const url = `${API_CONFIG.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
+        const url = `${window.API_CONFIG.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
         
         const response = await fetch(url);
         const data = await response.json();
@@ -304,7 +322,7 @@ function showNoData(chartId) {
 // 차트 초기화
 function initializeCharts() {
     // 기존 차트 정리
-    Object.values(charts).forEach(chart => {
+    Object.values(window.charts).forEach(chart => {
         if (chart) chart.destroy();
     });
 
@@ -315,7 +333,7 @@ function initializeCharts() {
     // 현재 페이지에 있는 차트만 초기화
     const areaChartElement = document.getElementById('areaChart');
     if (areaChartElement) {
-        charts.areaChart = new Chart(areaChartElement, {
+        window.charts.areaChart = new Chart(areaChartElement, {
             type: 'bar',
             data: {
                 labels: [],
@@ -358,7 +376,7 @@ function initializeCharts() {
 
     const deviceChartElement = document.getElementById('deviceChart');
     if (deviceChartElement) {
-        charts.deviceChart = new Chart(deviceChartElement, {
+        window.charts.deviceChart = new Chart(deviceChartElement, {
             type: 'pie',
             data: {
                 labels: [],
@@ -386,7 +404,7 @@ function initializeCharts() {
 
     const timeChartElement = document.getElementById('timeChart');
     if (timeChartElement) {
-        charts.timeChart = new Chart(timeChartElement, {
+        window.charts.timeChart = new Chart(timeChartElement, {
             type: 'line',
             data: {
                 labels: Array.from({length: 24}, (_, i) => `${i}시`),
@@ -428,10 +446,10 @@ async function loadDashboardData() {
             hourlyStats,
             deviceStats
         ] = await Promise.all([
-            fetchAPI(API_CONFIG.endpoints.stats, params),
-            fetchAPI(API_CONFIG.endpoints.areaStats, params),
-            fetchAPI(API_CONFIG.endpoints.hourlyStats, params),
-            fetchAPI(API_CONFIG.endpoints.deviceStats, params)
+            fetchAPI(window.API_CONFIG.endpoints.stats, params),
+            fetchAPI(window.API_CONFIG.endpoints.areaStats, params),
+            fetchAPI(window.API_CONFIG.endpoints.hourlyStats, params),
+            fetchAPI(window.API_CONFIG.endpoints.deviceStats, params)
         ]);
         
         updateCharts({
@@ -458,43 +476,40 @@ function updateCharts(data) {
 
     // 영역별 체류시간
     if (data.areaStats) {
-        charts.areaChart.data.labels = data.areaStats.map(stat => stat.areaName);
-        charts.areaChart.data.datasets[0].data = data.areaStats.map(stat => stat.avgTimeSpent);
-        charts.areaChart.update();
+        window.charts.areaChart.data.labels = data.areaStats.map(stat => stat.areaName);
+        window.charts.areaChart.data.datasets[0].data = data.areaStats.map(stat => stat.avgTimeSpent);
+        window.charts.areaChart.update();
     }
 
     // 디바이스별 통계
     if (data.deviceStats) {
-        charts.deviceChart.data.labels = data.deviceStats.map(stat => stat.deviceType);
-        charts.deviceChart.data.datasets[0].data = data.deviceStats.map(stat => stat.sessionCount);
-        charts.deviceChart.update();
+        window.charts.deviceChart.data.labels = data.deviceStats.map(stat => stat.deviceType);
+        window.charts.deviceChart.data.datasets[0].data = data.deviceStats.map(stat => stat.sessionCount);
+        window.charts.deviceChart.update();
     }
 
     // 시간대별 활동
     if (data.hourlyStats) {
-        charts.timeChart.data.datasets[0].data = data.hourlyStats.map(stat => stat.sessionCount);
-        charts.timeChart.update();
+        window.charts.timeChart.data.datasets[0].data = data.hourlyStats.map(stat => stat.sessionCount);
+        window.charts.timeChart.update();
     }
 }
 
 // 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', () => {
-    // 현재 페이지가 analytics-dashboard.html인 경우에만 차트 초기화
-    if (window.location.pathname.includes('analytics-dashboard.html')) {
-        initializeCharts();
-        loadDashboardData();
-    }
-
+    initializeCharts();
+    loadDashboardData();
+    
     // 필터 변경 이벤트
     ['date-from', 'date-to', 'page-filter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', loadDashboardData);
     });
-}); 
+});
 
 // 세션 목록 조회
 async function loadSessionsTable() {
     try {
-        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.sessions}?limit=10`);
+        const response = await fetch(`${window.API_CONFIG.baseUrl}${window.API_CONFIG.endpoints.sessions}?limit=10`);
         if (!response.ok) throw new Error('API 요청 실패');
         
         const result = await response.json();
