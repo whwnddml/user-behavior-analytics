@@ -702,4 +702,25 @@ export class AnalyticsModel {
             throw error;
         }
     }
+
+    async getPageList(): Promise<string[]> {
+        const query = `
+            SELECT DISTINCT page_url
+            FROM pageviews
+            WHERE page_url LIKE 'http%'  -- 프로토콜로 시작하는 URL만 선택
+            ORDER BY page_url
+        `;
+
+        try {
+            const result = await this.withConnection(async (client) => {
+                const result = await client.query(query);
+                return result.rows.map(row => row.page_url);
+            });
+            logger.info('Retrieved page list:', result);
+            return result;
+        } catch (error) {
+            logger.error('Error getting page list:', error);
+            throw error;
+        }
+    }
 }

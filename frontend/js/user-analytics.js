@@ -950,7 +950,10 @@ class UserAnalytics {
             const payload = {
                 visitorId: this.analyticsData.visitorId,
                 sessionId: this.analyticsData.sessionId,
-                pageUrl: new URL(this.analyticsData.pageUrl, window.location.origin).pathname,  // URL을 pathname으로 변환
+                pageUrl: (() => {
+                    const url = new URL(this.analyticsData.pageUrl, window.location.origin);
+                    return url.origin + url.pathname + (url.hash || '');  // 호스트 정보와 해시 태그 포함
+                })(),
                 pageTitle: this.analyticsData.pageTitle,
                 userAgent: this.analyticsData.userAgent,
                 startTime: toISOString(this.analyticsData.startTime),

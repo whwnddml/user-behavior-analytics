@@ -117,12 +117,12 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             const startTime = analyticsData.startTime ? new Date(analyticsData.startTime) : new Date();
             const endTime = analyticsData.endTime ? new Date(analyticsData.endTime) : null;
 
-            // URL 처리 - pathname만 저장
-            let pathname;
+            // URL 처리 - 전체 URL 저장
+            let pageUrl;
             try {
-                // URL이 상대 경로인 경우에도 pathname 추출
+                // URL이 상대 경로인 경우에도 전체 URL 추출
                 const url = new URL(analyticsData.pageUrl, 'http://localhost:8080');
-                pathname = url.pathname;
+                pageUrl = url.origin + url.pathname + (url.hash || '');
             } catch (error) {
                 logger.error('Error processing URL:', error);
                 res.status(400).json({ error: 'Invalid URL format' });
@@ -135,7 +135,7 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             // 페이지뷰 저장 또는 기존 페이지뷰 찾기
             const pageviewId = await analyticsModel.findOrCreatePageview({
                 sessionId,
-                pageUrl: pathname,
+                pageUrl: pageUrl,
                 pageTitle: analyticsData.pageTitle,
                 loadTime: analyticsData.performance.loadTime,
                 domContentLoaded: analyticsData.performance.domContentLoaded,
@@ -292,6 +292,23 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
         } catch (error) {
             logger.error('Error getting visitor sessions:', error);
             res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // 페이지 목록 조회
+    router.get('/pages', async (_req: Request, res: Response): Promise<void> => {
+        try {
+            const pages = await analyticsModel.getPageList();
+            res.json({
+                success: true,
+                data: pages
+            });
+        } catch (error) {
+            logger.error('Error getting page list:', error);
+            res.status(500).json({ 
+                success: false,
+                error: 'Internal server error' 
+            });
         }
     });
 

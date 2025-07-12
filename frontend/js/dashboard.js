@@ -918,11 +918,59 @@ function updateSessionsTable(sessions) {
     }
 }
 
+// 페이지 목록 로드
+async function loadPageList() {
+    try {
+        const response = await fetch(`${API_CONFIG.baseUrl}/pages`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || '페이지 목록을 불러오는데 실패했습니다.');
+        }
+
+        console.log('받아온 페이지 목록:', data.data);
+
+        const pageFilter = document.getElementById('page-filter');
+        if (pageFilter) {
+            // 기존 옵션 제거
+            pageFilter.innerHTML = '<option value="">모든 페이지</option>';
+            
+            // 페이지별로 옵션 추가
+            data.data.forEach(pageUrl => {
+                console.log('처리 중인 페이지 URL:', pageUrl);
+                const option = document.createElement('option');
+                option.value = pageUrl;
+                
+                // URL을 보기 좋게 표시
+                let displayText;
+                try {
+                    // URL이 프로토콜로 시작하지 않으면 추가
+                    const fullUrl = pageUrl.startsWith('http') ? pageUrl : `https://${pageUrl}`;
+                    const url = new URL(fullUrl);
+                    displayText = `${url.hostname}${url.pathname}${url.hash || ''}`;
+                } catch (error) {
+                    console.warn('URL 파싱 실패:', pageUrl, error);
+                    displayText = pageUrl; // 파싱 실패 시 원본 URL 사용
+                }
+                
+                option.textContent = displayText;
+                pageFilter.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('페이지 목록 로드 실패:', error);
+        showError('페이지 목록을 불러오는데 실패했습니다.');
+    }
+}
+
 // 이벤트 리스너 등록 - DOMContentLoaded 이벤트가 발생한 후에만 차트 초기화
 document.addEventListener('DOMContentLoaded', function() {
     try {
         // 차트 초기화
         initializeCharts();
+        
+        // 페이지 목록 로드
+        loadPageList();
         
         // 데이터 로드
         loadDashboardData();
