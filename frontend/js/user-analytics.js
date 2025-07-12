@@ -56,7 +56,8 @@ class UserAnalytics {
             areaTimers: new Map(),
             formStates: new Map(),
             clickCount: 0,
-            sessionStarted: false
+            sessionStarted: false,
+            isPageVisible: !document.hidden // 페이지 가시성 상태 추가
         };
 
         // 이벤트 핸들러 바인딩
@@ -567,12 +568,19 @@ class UserAnalytics {
     handleVisibilityChange() {
         if (document.hidden) {
             // 페이지가 숨겨짐 - 현재 영역 타이머 일시정지
+            this.trackingState.isPageVisible = false;
             this.pauseAreaTimers();
-            this.log('Page hidden - timers paused');
+            this.pausePeriodicSending();
+            this.log('Page hidden - timers and sending paused');
         } else {
             // 페이지가 다시 보임 - 타이머 재시작
+            this.trackingState.isPageVisible = true;
             this.resumeAreaTimers();
-            this.log('Page visible - timers resumed');
+            this.resumePeriodicSending();
+            
+            // 포그라운드 복귀 시 즉시 데이터 전송 (백그라운드에서 누적된 데이터 전송)
+            this.sendAnalyticsData();
+            this.log('Page visible - timers and sending resumed, data sent immediately');
         }
     }
 
@@ -620,10 +628,36 @@ class UserAnalytics {
      */
     startPeriodicSending() {
         this.trackingState.sendTimer = setInterval(() => {
-            this.sendAnalyticsData();
+            // 페이지가 보이는 상태일 때만 전송
+            if (this.trackingState.isPageVisible) {
+                this.sendAnalyticsData();
+            } else {
+                this.log('Skipping data send - page not visible');
+            }
         }, this.config.sendInterval);
 
         this.log(`Periodic sending started (interval: ${this.config.sendInterval}ms)`);
+    }
+
+    /**
+     * 주기적 데이터 전송 일시정지
+     */
+    pausePeriodicSending() {
+        if (this.trackingState.sendTimer) {
+            clearInterval(this.trackingState.sendTimer);
+            this.trackingState.sendTimer = null;
+            this.log('Periodic sending paused');
+        }
+    }
+
+    /**
+     * 주기적 데이터 전송 재개
+     */
+    resumePeriodicSending() {
+        if (!this.trackingState.sendTimer) {
+            this.startPeriodicSending();
+            this.log('Periodic sending resumed');
+        }
     }
 
     /**
