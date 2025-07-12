@@ -813,6 +813,7 @@ function updateCharts(data) {
         // 영역별 체류시간
         if (stats.areas && stats.areas.length > 0) {
             window.charts.areaChart.data.labels = stats.areas.map(area => area.area_name || '알 수 없는 영역');
+            // 데이터 수집 시점에서 이미 초 단위로 변환되어 저장됨
             window.charts.areaChart.data.datasets[0].data = stats.areas.map(area => area.avg_time_spent);
             window.charts.areaChart.update();
         } else {

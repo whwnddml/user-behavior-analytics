@@ -365,9 +365,10 @@ class UserAnalytics {
                 // 영역이 보이지 않게 됨
                 const startTime = this.trackingState.areaTimers.get(areaId);
                 if (startTime) {
-                    const timeSpent = currentTime - startTime;
-                    areaData.timeSpent = Math.round(areaData.timeSpent + timeSpent); // 소수점을 정수로 변환
-                    areaData.visibility.visibleTime = Math.round(areaData.visibility.visibleTime + timeSpent); // 소수점을 정수로 변환
+                    const timeSpentMs = currentTime - startTime;
+                    const timeSpentSeconds = Math.round(timeSpentMs / 1000); // 밀리초를 초로 변환
+                    areaData.timeSpent = areaData.timeSpent + timeSpentSeconds;
+                    areaData.visibility.visibleTime = areaData.visibility.visibleTime + timeSpentSeconds;
                     areaData.lastEngagement = currentTime;
                     this.trackingState.areaTimers.delete(areaId);
                 }
@@ -593,9 +594,10 @@ class UserAnalytics {
         this.trackingState.areaTimers.forEach((startTime, areaId) => {
             const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
             if (areaData) {
-                const timeSpent = currentTime - startTime;
-                areaData.timeSpent += timeSpent;
-                areaData.visibility.visibleTime += timeSpent;
+                const timeSpentMs = currentTime - startTime;
+                const timeSpentSeconds = Math.round(timeSpentMs / 1000); // 밀리초를 초로 변환
+                areaData.timeSpent += timeSpentSeconds;
+                areaData.visibility.visibleTime += timeSpentSeconds;
             }
         });
         this.trackingState.areaTimers.clear();
@@ -834,9 +836,10 @@ class UserAnalytics {
         this.trackingState.areaTimers.forEach((startTime, areaId) => {
             const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
             if (areaData) {
-                const additionalTime = currentTime - startTime;
-                areaData.timeSpent += additionalTime;
-                areaData.visibility.visibleTime += additionalTime;
+                const additionalTimeMs = currentTime - startTime;
+                const additionalTimeSeconds = Math.round(additionalTimeMs / 1000); // 밀리초를 초로 변환
+                areaData.timeSpent += additionalTimeSeconds;
+                areaData.visibility.visibleTime += additionalTimeSeconds;
             }
         });
 
@@ -864,15 +867,16 @@ class UserAnalytics {
             if (isActive) {
                 // 활성 영역: 마지막 전송 이후 추가된 시간 계산
                 const areaStartTime = this.trackingState.areaTimers.get(areaId);
-                const incrementalTime = currentTime - Math.max(areaStartTime, lastSentTime);
+                const incrementalTimeMs = currentTime - Math.max(areaStartTime, lastSentTime);
+                const incrementalTimeSeconds = Math.round(incrementalTimeMs / 1000); // 밀리초를 초로 변환
                 
-                if (incrementalTime > 0) {
+                if (incrementalTimeSeconds > 0) {
                     incrementalAreas.push({
                         ...areaData,
-                        timeSpent: incrementalTime, // 누적이 아닌 증분 시간
+                        timeSpent: incrementalTimeSeconds, // 누적이 아닌 증분 시간 (초 단위)
                         visibility: {
                             ...areaData.visibility,
-                            visibleTime: incrementalTime
+                            visibleTime: incrementalTimeSeconds
                         },
                         lastEngagement: currentTime
                     });
@@ -880,15 +884,16 @@ class UserAnalytics {
             } else {
                 // 비활성 영역: 마지막 전송 이후 변경사항이 있는지 확인
                 if (areaData.lastEngagement > lastSentTime) {
-                    const incrementalTime = areaData.lastEngagement - lastSentTime;
+                    const incrementalTimeMs = areaData.lastEngagement - lastSentTime;
+                    const incrementalTimeSeconds = Math.round(incrementalTimeMs / 1000); // 밀리초를 초로 변환
                     
-                    if (incrementalTime > 0) {
+                    if (incrementalTimeSeconds > 0) {
                         incrementalAreas.push({
                             ...areaData,
-                            timeSpent: incrementalTime,
+                            timeSpent: incrementalTimeSeconds,
                             visibility: {
                                 ...areaData.visibility,
-                                visibleTime: incrementalTime
+                                visibleTime: incrementalTimeSeconds
                             }
                         });
                     }
