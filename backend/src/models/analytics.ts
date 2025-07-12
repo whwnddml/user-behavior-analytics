@@ -421,13 +421,16 @@ export class AnalyticsModel {
 
         try {
             const [overview, areas, devices, browsers, hourly, recentSessions] = await Promise.all([
-                // Overview statistics
+                // Overview statistics (방문자 기준)
                 this.withConnection(async (client) => {
                     const result = await client.query(`
                         SELECT 
+                            COUNT(DISTINCT s.visitor_id) as total_visitors,
                             COUNT(DISTINCT s.session_id) as total_sessions,
                             COUNT(DISTINCT p.pageview_id) as total_pageviews,
                             COUNT(DISTINCT i.interaction_id) as total_interactions,
+                            COALESCE(ROUND(COUNT(DISTINCT s.session_id)::numeric / NULLIF(COUNT(DISTINCT s.visitor_id), 0), 2), 0) as sessions_per_visitor,
+                            COALESCE(ROUND(COUNT(DISTINCT p.pageview_id)::numeric / NULLIF(COUNT(DISTINCT s.visitor_id), 0), 2), 0) as pageviews_per_visitor,
                             AVG(EXTRACT(EPOCH FROM (s.end_time - s.start_time))) as avg_session_time
                         FROM sessions s
                         LEFT JOIN pageviews p ON s.session_id = p.session_id
@@ -626,9 +629,12 @@ export class AnalyticsModel {
 
             return {
                 overview: {
+                    total_visitors: parseInt(overview.total_visitors) || 0,
                     total_sessions: parseInt(overview.total_sessions) || 0,
                     total_pageviews: parseInt(overview.total_pageviews) || 0,
                     total_interactions: parseInt(overview.total_interactions) || 0,
+                    sessions_per_visitor: parseFloat(overview.sessions_per_visitor) || 0,
+                    pageviews_per_visitor: parseFloat(overview.pageviews_per_visitor) || 0,
                     avg_session_time: parseFloat(overview.avg_session_time) || 0
                 },
                 areas: areas.map(row => ({

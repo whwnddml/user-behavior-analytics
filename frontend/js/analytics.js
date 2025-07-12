@@ -656,8 +656,8 @@ function resetChartData() {
         container.appendChild(loadingDiv);
     });
 
-    // Overview 통계 초기화 및 로딩 상태 표시
-    ['total-sessions', 'total-pageviews', 'total-interactions', 'avg-session-time'].forEach(id => {
+    // Overview 통계 초기화 및 로딩 상태 표시 (방문자 기준)
+    ['total-visitors', 'total-sessions', 'total-pageviews', 'sessions-per-visitor', 'pageviews-per-visitor', 'avg-session-time'].forEach(id => {
         const element = document.getElementById(id);
         if (element) {
             element.textContent = '로딩중...';
@@ -792,11 +792,33 @@ function updateCharts(data) {
     try {
         const stats = data.stats;
 
-        // Overview 통계 업데이트
-        ['total-sessions', 'total-pageviews', 'total-interactions'].forEach(id => {
+        // Overview 통계 업데이트 (방문자 기준)
+        ['total-visitors', 'total-sessions', 'total-pageviews'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.textContent = formatNumber(stats.overview[id.replace('-', '_')]);
+                element.classList.remove('loading');
+            }
+        });
+        
+        // 비율 데이터는 소수점 처리
+        const ratioMappings = {
+            'sessions-per-visitor': 'sessions_per_visitor',
+            'pageviews-per-visitor': 'pageviews_per_visitor'
+        };
+        
+        ['sessions-per-visitor', 'pageviews-per-visitor'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                const key = ratioMappings[id];
+                const value = stats.overview[key];
+                
+                const numValue = Number(value);
+                if (isFinite(numValue)) {
+                    element.textContent = numValue.toFixed(1);
+                } else {
+                    element.textContent = '0.0';
+                }
                 element.classList.remove('loading');
             }
         });

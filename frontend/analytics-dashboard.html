@@ -178,9 +178,17 @@
             </div>
         </div>
 
-        <!-- 통계 카드 -->
+        <!-- 통계 카드 (방문자 기준) -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">총 방문자</h5>
+                        <h2 id="total-visitors" class="mb-0">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
                         <h5 class="card-title">총 세션</h5>
@@ -188,7 +196,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
                         <h5 class="card-title">총 페이지뷰</h5>
@@ -196,15 +204,23 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
-                        <h5 class="card-title">총 클릭수</h5>
-                        <h2 id="total-interactions" class="mb-0">-</h2>
+                        <h5 class="card-title">방문자당 세션</h5>
+                        <h2 id="sessions-per-visitor" class="mb-0">-</h2>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">방문자당 페이지뷰</h5>
+                        <h2 id="pageviews-per-visitor" class="mb-0">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
                         <h5 class="card-title">평균 세션 시간</h5>

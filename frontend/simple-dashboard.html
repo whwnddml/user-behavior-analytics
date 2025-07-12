@@ -62,6 +62,10 @@
 
         <div class="stats-grid">
             <div class="stat-card">
+                <div class="value" id="total-visitors">-</div>
+                <div class="label">총 방문자</div>
+            </div>
+            <div class="stat-card">
                 <div class="value" id="total-sessions">-</div>
                 <div class="label">총 세션</div>
             </div>
@@ -70,8 +74,12 @@
                 <div class="label">총 페이지뷰</div>
             </div>
             <div class="stat-card">
-                <div class="value" id="total-interactions">-</div>
-                <div class="label">총 상호작용</div>
+                <div class="value" id="sessions-per-visitor">-</div>
+                <div class="label">방문자당 세션</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="pageviews-per-visitor">-</div>
+                <div class="label">방문자당 페이지뷰</div>
             </div>
             <div class="stat-card">
                 <div class="value" id="avg-session-time">-</div>
@@ -119,15 +127,22 @@
                     throw new Error(data.message || '데이터 로드 실패');
                 }
 
-                // 통계 업데이트
+                // 통계 업데이트 (방문자 기준)
+                document.getElementById('total-visitors').textContent = 
+                    data.data.overview.total_visitors.toLocaleString();
                 document.getElementById('total-sessions').textContent = 
-                    data.data.summary.totalSessions.toLocaleString();
+                    data.data.overview.total_sessions.toLocaleString();
                 document.getElementById('total-pageviews').textContent = 
-                    data.data.summary.totalPageviews.toLocaleString();
-                document.getElementById('total-interactions').textContent = 
-                    data.data.summary.totalInteractions.toLocaleString();
+                    data.data.overview.total_pageviews.toLocaleString();
+                // 비율 데이터 안전 처리
+                const sessionsPerVisitor = data.data.overview.sessions_per_visitor;
+                document.getElementById('sessions-per-visitor').textContent = 
+                    (sessionsPerVisitor !== null && sessionsPerVisitor !== undefined && !isNaN(sessionsPerVisitor)) ? Number(sessionsPerVisitor).toFixed(1) : '0.0';
+                const pageviewsPerVisitor = data.data.overview.pageviews_per_visitor;
+                document.getElementById('pageviews-per-visitor').textContent = 
+                    (pageviewsPerVisitor !== null && pageviewsPerVisitor !== undefined && !isNaN(pageviewsPerVisitor)) ? Number(pageviewsPerVisitor).toFixed(1) : '0.0';
                 document.getElementById('avg-session-time').textContent = 
-                    data.data.summary.avgSessionTime.value.toLocaleString();
+                    data.data.overview.avg_session_time.toLocaleString();
 
                 // 마지막 업데이트 시간
                 document.getElementById('last-updated').textContent = 
