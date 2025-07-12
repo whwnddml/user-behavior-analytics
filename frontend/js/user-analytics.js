@@ -96,12 +96,37 @@ class UserAnalytics {
     }
 
     /**
-     * 세션 ID 생성
+     * 세션 ID 생성 또는 기존 세션 ID 재사용
      */
     generateSessionId() {
+        // 기존 세션 ID가 있고 유효하면 재사용
+        const existingSessionId = localStorage.getItem('analytics_session_id');
+        const sessionStartTime = localStorage.getItem('analytics_session_start');
+        
+        if (existingSessionId && sessionStartTime) {
+            const sessionAge = Date.now() - parseInt(sessionStartTime);
+            // 세션이 30분 이내면 재사용
+            if (sessionAge < this.config.sessionTimeout) {
+                this.log('Reusing existing session ID:', existingSessionId);
+                return existingSessionId;
+            } else {
+                this.log('Session expired, creating new session');
+                localStorage.removeItem('analytics_session_id');
+                localStorage.removeItem('analytics_session_start');
+            }
+        }
+        
+        // 새로운 세션 ID 생성
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(2, 9);
-        return `s_${this.visitorId}_${timestamp}_${random}`;
+        const newSessionId = `s_${this.visitorId}_${timestamp}_${random}`;
+        
+        // localStorage에 저장
+        localStorage.setItem('analytics_session_id', newSessionId);
+        localStorage.setItem('analytics_session_start', timestamp.toString());
+        
+        this.log('New session ID created:', newSessionId);
+        return newSessionId;
     }
 
     /**
@@ -943,6 +968,9 @@ class UserAnalytics {
 
             if (response.ok) {
                 this.log('Session ended successfully');
+                // 세션 종료 시 localStorage에서 세션 정보 제거
+                localStorage.removeItem('analytics_session_id');
+                localStorage.removeItem('analytics_session_start');
             }
         } catch (error) {
             this.log('Error ending session:', error);
