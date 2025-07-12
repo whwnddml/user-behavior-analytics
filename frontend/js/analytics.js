@@ -314,6 +314,20 @@ async function fetchAPI(endpoint, params = {}) {
     }
 }
 
+// 헬스체크 수행
+async function performHealthCheck() {
+    try {
+        const response = await fetch(`${window.API_CONFIG.baseUrl}/healthz`);
+        if (!response.ok) {
+            throw new Error(`Health check failed: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('Health check successful:', data);
+    } catch (error) {
+        console.error('Health check error:', error);
+    }
+}
+
 // 차트 데이터 없음 표시
 function showNoData(chartId) {
     const container = document.getElementById(chartId).parentElement;
@@ -568,19 +582,6 @@ async function loadSessionsTable() {
         `;
     }
 } 
-
-// 백엔드 서버 Health Check 함수
-function performHealthCheck() {
-    fetch('https://user-behavior-analytics-api.onrender.com/healthz')
-        .then(response => {
-            if (!response.ok) {
-                console.warn('Health check failed:', response.status);
-            }
-        })
-        .catch(error => {
-            console.warn('Health check error:', error);
-        });
-}
 
 // 10분마다 헬스체크 실행 (15분 서스펜드 타임아웃 이전에 요청)
 setInterval(performHealthCheck, 10 * 60 * 1000);
