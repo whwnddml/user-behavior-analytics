@@ -776,6 +776,11 @@ class UserAnalytics {
             this.lastPayload = payload;
 
             this.log('Sending payload:', {
+                areaEngagements: payload.areaEngagements.map(area => ({
+                    areaName: area.areaName,
+                    timeSpent: area.timeSpent,
+                    incrementalTime: area.timeSpent
+                })),
                 interactionMap: payload.interactionMap,
                 timestamp: payload.interactionMap[0]?.timestamp,
                 recordedAt: payload.interactionMap[0]?.recordedAt
