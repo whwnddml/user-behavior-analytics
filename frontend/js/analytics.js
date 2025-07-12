@@ -401,6 +401,14 @@ function showNoData(chartId) {
     container.appendChild(noDataDiv);
 }
 
+// 차트 객체 저장소
+window.charts = {
+    areaChart: null,
+    deviceChart: null,
+    timeChart: null,
+    browserChart: null
+};
+
 // 차트 초기화
 function initializeCharts() {
     // 기존 차트 정리
@@ -484,6 +492,39 @@ function initializeCharts() {
         });
     }
 
+    // 브라우저 차트 초기화
+    const browserCtx = document.getElementById('browser-chart').getContext('2d');
+    window.charts.browserChart = new Chart(browserCtx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '세션 수',
+                data: [],
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
     const timeChartElement = document.getElementById('timeChart');
     if (timeChartElement) {
         window.charts.timeChart = new Chart(timeChartElement, {
@@ -538,20 +579,16 @@ function resetChartData() {
     Object.entries(window.charts).forEach(([chartId, chart]) => {
         if (!chart) return;
 
-        // 차트 타입별 초기화
-        switch(chartId) {
-            case 'areaChart':
-                chart.data.labels = [];
-                chart.data.datasets[0].data = [];
-                break;
-            case 'deviceChart':
-                chart.data.labels = [];
-                chart.data.datasets[0].data = [];
-                break;
-            case 'timeChart':
-                chart.data.datasets[0].data = Array(24).fill(0);
-                break;
+        // 모든 차트 데이터 초기화
+        chart.data.labels = [];
+        chart.data.datasets[0].data = [];
+
+        // 시간 차트는 특별 처리
+        if (chartId === 'timeChart') {
+            chart.data.labels = Array.from({length: 24}, (_, i) => `${i}시`);
+            chart.data.datasets[0].data = Array(24).fill(0);
         }
+
         chart.update('none'); // 애니메이션 없이 업데이트
     });
 
@@ -695,6 +732,15 @@ function updateCharts(data) {
             window.charts.deviceChart.update();
         } else {
             showNoData('deviceChart');
+        }
+
+        // 브라우저별 통계
+        if (stats.browsers && stats.browsers.length > 0) {
+            window.charts.browserChart.data.labels = stats.browsers.map(browser => `${browser.browser_name} ${browser.browser_version}`);
+            window.charts.browserChart.data.datasets[0].data = stats.browsers.map(browser => browser.session_count);
+            window.charts.browserChart.update();
+        } else {
+            showNoData('browserChart');
         }
 
         // 시간대별 활동량

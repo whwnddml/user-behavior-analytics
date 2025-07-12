@@ -232,6 +232,32 @@
             </div>
         </div>
 
+        <!-- 차트 섹션 -->
+        <div class="row mb-4">
+            <!-- 브라우저 통계 차트 -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">브라우저 통계</h5>
+                        <div class="chart-container">
+                            <canvas id="browser-chart"></canvas>
+                            <div id="browser-chart-loading" class="chart-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <div id="browser-chart-error" class="chart-error d-none">
+                                데이터를 불러오는 중 오류가 발생했습니다.
+                            </div>
+                            <div id="browser-chart-no-data" class="chart-no-data d-none">
+                                데이터가 없습니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 차트 영역 -->
         <div class="row">
             <!-- 영역별 체류시간 차트 -->
@@ -248,9 +274,9 @@
 
             <!-- 디바이스별 통계 차트 -->
             <div class="col-md-6">
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-body">
-                        <h5 class="card-title">디바이스별 통계</h5>
+                        <h5 class="card-title">디바이스별 사용자 분포</h5>
                         <div class="chart-container">
                             <canvas id="deviceChart"></canvas>
                         </div>
@@ -260,9 +286,9 @@
 
             <!-- 브라우저별 통계 차트 -->
             <div class="col-md-6">
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-body">
-                        <h5 class="card-title">브라우저별 통계</h5>
+                        <h5 class="card-title">브라우저별 사용자 분포</h5>
                         <div class="chart-container">
                             <canvas id="browserChart"></canvas>
                         </div>
