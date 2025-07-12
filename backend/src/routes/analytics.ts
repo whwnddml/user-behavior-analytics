@@ -133,47 +133,45 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             await analyticsModel.createOrUpdateSession(sessionId, visitorId, startTime, endTime, userAgent);
 
             // 페이지뷰 저장 또는 기존 페이지뷰 찾기
-            let pageviewId;
-            try {
-                // 기존 페이지뷰 찾기 (같은 세션, 같은 URL)
-                pageviewId = await analyticsModel.findOrCreatePageview({
-                    sessionId,
-                    pageUrl: pathname,
-                    pageTitle: analyticsData.pageTitle,
-                    loadTime: analyticsData.performance.loadTime,
-                    domContentLoaded: analyticsData.performance.domContentLoaded,
-                    firstPaint: analyticsData.performance.firstPaint,
-                    firstContentfulPaint: analyticsData.performance.firstContentfulPaint,
-                    startTime: new Date(analyticsData.startTime),
-                    endTime: analyticsData.endTime ? new Date(analyticsData.endTime) : null
-                });
-            } catch (error) {
-                // 기존 방식으로 폴백
-                pageviewId = await analyticsModel.createPageview({
-                    sessionId,
-                    pageUrl: pathname,
-                    pageTitle: analyticsData.pageTitle,
-                    loadTime: analyticsData.performance.loadTime,
-                    domContentLoaded: analyticsData.performance.domContentLoaded,
-                    firstPaint: analyticsData.performance.firstPaint,
-                    firstContentfulPaint: analyticsData.performance.firstContentfulPaint,
-                    startTime: new Date(analyticsData.startTime),
-                    endTime: analyticsData.endTime ? new Date(analyticsData.endTime) : null
-                });
-            }
+            const pageviewId = await analyticsModel.findOrCreatePageview({
+                sessionId,
+                pageUrl: pathname,
+                pageTitle: analyticsData.pageTitle,
+                loadTime: analyticsData.performance.loadTime,
+                domContentLoaded: analyticsData.performance.domContentLoaded,
+                firstPaint: analyticsData.performance.firstPaint,
+                firstContentfulPaint: analyticsData.performance.firstContentfulPaint,
+                startTime: new Date(analyticsData.startTime),
+                endTime: analyticsData.endTime ? new Date(analyticsData.endTime) : null
+            });
 
             // 영역 체류 시간 저장
             for (const area of analyticsData.areaEngagements) {
+                // 데이터 정규화: 타임스탬프가 아닌 실제 초 단위 시간인지 확인
+                let normalizedTimeSpent = area.timeSpent;
+                if (normalizedTimeSpent > 1000000) {
+                    // 1,000,000 이상이면 타임스탬프로 간주하고 0으로 설정
+                    logger.warn(`Invalid time_spent value detected: ${normalizedTimeSpent}, setting to 0`);
+                    normalizedTimeSpent = 0;
+                }
+                
+                let normalizedVisibleTime = area.visibility.visibleTime;
+                if (normalizedVisibleTime > 1000000) {
+                    // 1,000,000 이상이면 타임스탬프로 간주하고 0으로 설정
+                    logger.warn(`Invalid visible_time value detected: ${normalizedVisibleTime}, setting to 0`);
+                    normalizedVisibleTime = 0;
+                }
+
                 await analyticsModel.createAreaEngagement({
                     pageviewId,
                     areaId: area.areaId,
                     areaName: area.areaName,
                     areaType: area.areaType,
-                    timeSpent: area.timeSpent,
+                    timeSpent: normalizedTimeSpent,
                     interactionCount: area.interactions,
                     firstEngagement: new Date(area.firstEngagement),
                     lastEngagement: new Date(area.lastEngagement),
-                    visibleTime: area.visibility.visibleTime,
+                    visibleTime: normalizedVisibleTime,
                     viewportPercent: area.visibility.viewportPercent
                 });
             }

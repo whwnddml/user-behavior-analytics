@@ -13,6 +13,12 @@ if (!window.API_BASE_URL) {
 
 class UserAnalytics {
     constructor(config = {}) {
+        // 싱글톤 패턴 구현 - 이미 인스턴스가 존재하면 반환
+        if (UserAnalytics.instance) {
+            console.log('[UserAnalytics] Returning existing UserAnalytics instance');
+            return UserAnalytics.instance;
+        }
+        
         // 기본 설정
         this.config = {
             apiEndpoint: config.apiEndpoint || window.API_BASE_URL,
@@ -58,7 +64,8 @@ class UserAnalytics {
             clickCount: 0,
             sessionStarted: false,
             isPageVisible: !document.hidden, // 페이지 가시성 상태 추가
-            lastSentTimes: new Map() // 각 영역별 마지막 전송 시간 추적
+            lastSentTimes: new Map(), // 각 영역별 마지막 전송 시간 추적
+            areaTimeoutFlags: new Map() // 각 영역별 3분 초과 플래그 추적
         };
 
         // 이벤트 핸들러 바인딩
@@ -68,6 +75,9 @@ class UserAnalytics {
             visibilitychange: this.handleVisibilityChange.bind(this)
         };
 
+        // 싱글톤 인스턴스 저장
+        UserAnalytics.instance = this;
+        
         this.init();
     }
 
@@ -102,17 +112,23 @@ class UserAnalytics {
         // 기존 세션 ID가 있고 유효하면 재사용
         const existingSessionId = localStorage.getItem('analytics_session_id');
         const sessionStartTime = localStorage.getItem('analytics_session_start');
+        const sessionLastActivity = localStorage.getItem('analytics_session_last_activity');
         
-        if (existingSessionId && sessionStartTime) {
+        if (existingSessionId && sessionStartTime && sessionLastActivity) {
             const sessionAge = Date.now() - parseInt(sessionStartTime);
-            // 세션이 30분 이내면 재사용
-            if (sessionAge < this.config.sessionTimeout) {
+            const timeSinceLastActivity = Date.now() - parseInt(sessionLastActivity);
+            
+            // 세션이 2시간 이내이고 마지막 활동이 30분 이내면 재사용
+            if (sessionAge < (2 * 60 * 60 * 1000) && timeSinceLastActivity < this.config.sessionTimeout) {
                 this.log('Reusing existing session ID:', existingSessionId);
+                // 마지막 활동 시간 업데이트
+                localStorage.setItem('analytics_session_last_activity', Date.now().toString());
                 return existingSessionId;
             } else {
                 this.log('Session expired, creating new session');
                 localStorage.removeItem('analytics_session_id');
                 localStorage.removeItem('analytics_session_start');
+                localStorage.removeItem('analytics_session_last_activity');
             }
         }
         
@@ -124,6 +140,7 @@ class UserAnalytics {
         // localStorage에 저장
         localStorage.setItem('analytics_session_id', newSessionId);
         localStorage.setItem('analytics_session_start', timestamp.toString());
+        localStorage.setItem('analytics_session_last_activity', timestamp.toString());
         
         this.log('New session ID created:', newSessionId);
         return newSessionId;
@@ -141,6 +158,9 @@ class UserAnalytics {
             this.analyticsData.startTime = new Date();
             this.trackingState.sessionStarted = true;
             this.log('Session timeout - new session started:', this.analyticsData.sessionId);
+        } else {
+            // 세션이 활성 상태면 마지막 활동 시간 업데이트
+            localStorage.setItem('analytics_session_last_activity', now.toString());
         }
         this.lastActivity = now;
     }
@@ -154,6 +174,18 @@ class UserAnalytics {
         this.analyticsData.userId = userId;
         localStorage.setItem('analytics_user_id', userId);
         this.log('User ID set:', userId);
+    }
+
+    /**
+     * 다른 영역들의 타임아웃 플래그 리셋
+     */
+    resetOtherAreaTimeoutFlags(currentAreaId) {
+        this.trackingState.areaTimeoutFlags.forEach((isTimeout, areaId) => {
+            if (areaId !== currentAreaId && isTimeout) {
+                this.trackingState.areaTimeoutFlags.set(areaId, false);
+                this.log(`Area ${areaId} timeout flag reset due to area change`);
+            }
+        });
     }
 
     /**
@@ -171,9 +203,15 @@ class UserAnalytics {
                         if (isVisible) {
                             // 팝업이 열릴 때 하단 영역의 타이머 일시 중지
                             this.pauseBackgroundAreas();
+                            
+                            // 팝업 영역의 체류시간 측정 강제 시작
+                            this.forceStartPopupTracking(popup);
                         } else {
                             // 팝업이 닫힐 때 하단 영역의 타이머 재개
                             this.resumeBackgroundAreas();
+                            
+                            // 팝업 영역의 체류시간 측정 종료
+                            this.forceEndPopupTracking(popup);
                         }
                     }
                 });
@@ -181,6 +219,80 @@ class UserAnalytics {
             
             observer.observe(popup, { attributes: true });
         });
+    }
+
+    /**
+     * 팝업 영역 체류시간 측정 강제 시작
+     */
+    forceStartPopupTracking(popup) {
+        const areaId = popup.dataset.areaId;
+        const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
+        
+        if (!areaData) return;
+        
+        const currentTime = new Date();
+        
+        // 다른 영역들의 타임아웃 플래그 리셋
+        this.resetOtherAreaTimeoutFlags(areaId);
+        
+        // 팝업은 즉시 검증된 상태로 체류시간 측정 시작
+        this.trackingState.areaTimers.set(areaId, {
+            startTime: currentTime,
+            isValidated: true, // 팝업은 즉시 검증
+            validatedStartTime: currentTime
+        });
+        
+        if (!areaData.firstEngagement) {
+            areaData.firstEngagement = currentTime;
+        }
+        
+        // 팝업 가시성 정보 업데이트 (팝업은 전체 화면에 표시되므로 100%)
+        areaData.visibility.viewportPercent = 100;
+        
+        // 3분 타임아웃 플래그 초기화
+        this.trackingState.areaTimeoutFlags.set(areaId, false);
+        
+        this.log(`Popup ${areaId} tracking started (forced)`);
+        
+        // 3분 후 타임아웃 플래그 설정
+        setTimeout(() => {
+            const currentTimerData = this.trackingState.areaTimers.get(areaId);
+            if (currentTimerData && currentTimerData.isValidated) {
+                this.trackingState.areaTimeoutFlags.set(areaId, true);
+                this.log(`Popup ${areaId} marked as timeout after 3 minutes (likely away from desk)`);
+            }
+        }, 180000); // 3분 = 180초
+    }
+
+    /**
+     * 팝업 영역 체류시간 측정 강제 종료
+     */
+    forceEndPopupTracking(popup) {
+        const areaId = popup.dataset.areaId;
+        const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
+        const timerData = this.trackingState.areaTimers.get(areaId);
+        
+        if (!areaData || !timerData) return;
+        
+        const currentTime = new Date();
+        
+        if (timerData.isValidated && timerData.validatedStartTime) {
+            // 검증된 체류시간 계산
+            const timeSpentMs = currentTime - timerData.validatedStartTime;
+            const timeSpentSeconds = Math.round(timeSpentMs / 1000);
+            
+            if (timeSpentSeconds > 0) {
+                areaData.timeSpent += timeSpentSeconds;
+                areaData.visibility.visibleTime += timeSpentSeconds;
+                areaData.lastEngagement = currentTime;
+                this.log(`Popup ${areaId} time tracked: ${timeSpentSeconds} seconds (forced end)`);
+            }
+        }
+        
+        // 타이머 제거
+        this.trackingState.areaTimers.delete(areaId);
+        
+        this.log(`Popup ${areaId} tracking ended (forced)`);
     }
 
     /**
@@ -219,9 +331,23 @@ class UserAnalytics {
                     clearInterval(existingTimer);
                 }
 
-                // 새로운 타이머 시작
-                const timer = setInterval(() => this.updateActiveAreaTimers(), 1000);
-                this.trackingState.areaTimers.set(areaId, timer);
+                // 새로운 타이머 시작 (40% 이상 보이는 영역만)
+                const areaElement = document.querySelector(`[data-area-id="${areaId}"]`);
+                if (areaElement) {
+                    const rect = areaElement.getBoundingClientRect();
+                    const viewportHeight = window.innerHeight;
+                    const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+                    const visibilityRatio = visibleHeight / rect.height;
+                    
+                    if (visibilityRatio >= 0.4) {
+                        const currentTime = new Date();
+                        this.trackingState.areaTimers.set(areaId, {
+                            startTime: currentTime,
+                            isValidated: true, // 팝업 복귀 시에는 즉시 검증된 것으로 처리
+                            validatedStartTime: currentTime
+                        });
+                    }
+                }
             }
         });
 
@@ -327,7 +453,7 @@ class UserAnalytics {
             {
                 root: null,
                 rootMargin: '0px',
-                threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0]
+                threshold: [0, 0.1, 0.25, 0.4, 0.5, 0.75, 1.0] // 40% 임계값 추가
             }
         );
 
@@ -372,29 +498,70 @@ class UserAnalytics {
             if (!areaData) return;
 
             const currentTime = new Date();
-            const isVisible = entry.isIntersecting && entry.intersectionRatio > 0.1;
+            const isVisible = entry.isIntersecting && entry.intersectionRatio >= 0.4; // 40% 이상 보여야 함
 
             if (isVisible) {
-                // 영역이 보이기 시작
+                // 영역이 40% 이상 보이기 시작
                 if (!this.trackingState.areaTimers.has(areaId)) {
-                    this.trackingState.areaTimers.set(areaId, currentTime);
+                    // 새로운 영역 진입 시 다른 영역들의 타임아웃 플래그 리셋
+                    this.resetOtherAreaTimeoutFlags(areaId);
                     
-                    if (!areaData.firstEngagement) {
-                        areaData.firstEngagement = currentTime;
-                    }
+                    // 임시 타이머 시작 (5초 후 실제 체류시간 측정 시작)
+                    this.trackingState.areaTimers.set(areaId, {
+                        startTime: currentTime,
+                        isValidated: false, // 5초 검증 통과 여부
+                        validatedStartTime: null // 실제 체류시간 측정 시작 시간
+                    });
+                    
+                    // 5초 후 검증
+                    setTimeout(() => {
+                        const timerData = this.trackingState.areaTimers.get(areaId);
+                        if (timerData && !timerData.isValidated) {
+                            // 5초 동안 계속 보이고 있었다면 실제 체류시간 측정 시작
+                            timerData.isValidated = true;
+                            timerData.validatedStartTime = new Date();
+                            this.trackingState.areaTimers.set(areaId, timerData);
+                            
+                            if (!areaData.firstEngagement) {
+                                areaData.firstEngagement = timerData.validatedStartTime;
+                            }
+                            
+                            // 3분 타임아웃 플래그 초기화
+                            this.trackingState.areaTimeoutFlags.set(areaId, false);
+                            
+                            this.log(`Area ${areaId} validated for time tracking after 5 seconds`);
+                            
+                            // 3분 후 타임아웃 플래그 설정
+                            setTimeout(() => {
+                                const currentTimerData = this.trackingState.areaTimers.get(areaId);
+                                if (currentTimerData && currentTimerData.isValidated) {
+                                    this.trackingState.areaTimeoutFlags.set(areaId, true);
+                                    this.log(`Area ${areaId} marked as timeout after 3 minutes (likely away from desk)`);
+                                }
+                            }, 180000); // 3분 = 180초
+                        }
+                    }, 5000); // 5초 대기
                 }
                 
                 // 가시성 정보 업데이트
                 areaData.visibility.viewportPercent = Math.round(entry.intersectionRatio * 100);
             } else {
                 // 영역이 보이지 않게 됨
-                const startTime = this.trackingState.areaTimers.get(areaId);
-                if (startTime) {
-                    const timeSpentMs = currentTime - startTime;
-                    const timeSpentSeconds = Math.round(timeSpentMs / 1000); // 밀리초를 초로 변환
-                    areaData.timeSpent = areaData.timeSpent + timeSpentSeconds;
-                    areaData.visibility.visibleTime = areaData.visibility.visibleTime + timeSpentSeconds;
-                    areaData.lastEngagement = currentTime;
+                const timerData = this.trackingState.areaTimers.get(areaId);
+                if (timerData) {
+                    if (timerData.isValidated && timerData.validatedStartTime) {
+                        // 검증된 체류시간만 계산
+                        const timeSpentMs = currentTime - timerData.validatedStartTime;
+                        const timeSpentSeconds = Math.round(timeSpentMs / 1000);
+                        if (timeSpentSeconds > 0) {
+                            areaData.timeSpent = areaData.timeSpent + timeSpentSeconds;
+                            areaData.visibility.visibleTime = areaData.visibility.visibleTime + timeSpentSeconds;
+                            areaData.lastEngagement = currentTime;
+                            this.log(`Area ${areaId} time tracked: ${timeSpentSeconds} seconds`);
+                        }
+                    } else {
+                        this.log(`Area ${areaId} left before 5-second validation`);
+                    }
                     this.trackingState.areaTimers.delete(areaId);
                 }
             }
@@ -616,13 +783,19 @@ class UserAnalytics {
      */
     pauseAreaTimers() {
         const currentTime = new Date();
-        this.trackingState.areaTimers.forEach((startTime, areaId) => {
+        this.trackingState.areaTimers.forEach((timerData, areaId) => {
             const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
-            if (areaData) {
-                const timeSpentMs = currentTime - startTime;
-                const timeSpentSeconds = Math.round(timeSpentMs / 1000); // 밀리초를 초로 변환
-                areaData.timeSpent += timeSpentSeconds;
-                areaData.visibility.visibleTime += timeSpentSeconds;
+            const isTimeout = this.trackingState.areaTimeoutFlags.get(areaId);
+            
+            if (areaData && timerData.isValidated && timerData.validatedStartTime && !isTimeout) {
+                // 검증된 체류시간만 계산 (3분 타임아웃된 영역 제외)
+                const timeSpentMs = currentTime - timerData.validatedStartTime;
+                const timeSpentSeconds = Math.round(timeSpentMs / 1000);
+                if (timeSpentSeconds > 0) {
+                    areaData.timeSpent += timeSpentSeconds;
+                    areaData.visibility.visibleTime += timeSpentSeconds;
+                    this.log(`Area ${areaId} paused with ${timeSpentSeconds} seconds`);
+                }
             }
         });
         this.trackingState.areaTimers.clear();
@@ -635,8 +808,18 @@ class UserAnalytics {
         // 현재 보이는 영역들의 타이머 재시작
         if (this.trackingState.areaObserver) {
             this.trackingState.areaObserver.takeRecords().forEach(entry => {
-                if (entry.isIntersecting && entry.intersectionRatio > 0.1) {
-                    this.trackingState.areaTimers.set(entry.target.dataset.areaId, new Date());
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.4) {
+                    const areaId = entry.target.dataset.areaId;
+                    const currentTime = new Date();
+                    
+                    // 새로운 타이머 구조로 재시작
+                    this.trackingState.areaTimers.set(areaId, {
+                        startTime: currentTime,
+                        isValidated: true, // 페이지 복귀 시에는 즉시 검증된 것으로 처리
+                        validatedStartTime: currentTime
+                    });
+                    
+                    this.log(`Area ${areaId} timer resumed`);
                 }
             });
         }
@@ -858,19 +1041,29 @@ class UserAnalytics {
      */
     updateActiveAreaTimers() {
         const currentTime = new Date();
-        this.trackingState.areaTimers.forEach((startTime, areaId) => {
+        this.trackingState.areaTimers.forEach((timerData, areaId) => {
             const areaData = this.analyticsData.areaEngagements.find(a => a.areaId === areaId);
-            if (areaData) {
-                const additionalTimeMs = currentTime - startTime;
-                const additionalTimeSeconds = Math.round(additionalTimeMs / 1000); // 밀리초를 초로 변환
-                areaData.timeSpent += additionalTimeSeconds;
-                areaData.visibility.visibleTime += additionalTimeSeconds;
+            const isTimeout = this.trackingState.areaTimeoutFlags.get(areaId);
+            
+            if (areaData && timerData.isValidated && timerData.validatedStartTime && !isTimeout) {
+                // 검증된 체류시간만 계산 (3분 타임아웃된 영역 제외)
+                const additionalTimeMs = currentTime - timerData.validatedStartTime;
+                const additionalTimeSeconds = Math.round(additionalTimeMs / 1000);
+                if (additionalTimeSeconds > 0) {
+                    areaData.timeSpent += additionalTimeSeconds;
+                    areaData.visibility.visibleTime += additionalTimeSeconds;
+                }
             }
         });
 
-        // 타이머 리셋
-        this.trackingState.areaTimers.forEach((startTime, areaId) => {
-            this.trackingState.areaTimers.set(areaId, currentTime);
+        // 타이머 리셋 (검증된 타이머만)
+        this.trackingState.areaTimers.forEach((timerData, areaId) => {
+            if (timerData.isValidated) {
+                this.trackingState.areaTimers.set(areaId, {
+                    ...timerData,
+                    validatedStartTime: currentTime
+                });
+            }
         });
     }
 
@@ -884,49 +1077,72 @@ class UserAnalytics {
         // 각 영역별로 증분 시간 계산
         this.analyticsData.areaEngagements.forEach(areaData => {
             const areaId = areaData.areaId;
-            const lastSentTime = this.trackingState.lastSentTimes.get(areaId) || areaData.firstEngagement;
+            
+            // lastSentTime 정규화 (Date 객체를 밀리초로 변환)
+            let lastSentTime = this.trackingState.lastSentTimes.get(areaId);
+            if (!lastSentTime) {
+                lastSentTime = areaData.firstEngagement;
+            }
+            
+            // Date 객체를 밀리초 타임스탬프로 변환
+            if (lastSentTime instanceof Date) {
+                lastSentTime = lastSentTime.getTime();
+            }
             
             // 현재 활성 영역인지 확인
-            const isActive = this.trackingState.areaTimers.has(areaId);
+            const timerData = this.trackingState.areaTimers.get(areaId);
+            const isActive = timerData && timerData.isValidated && timerData.validatedStartTime;
             
             if (isActive) {
-                // 활성 영역: 마지막 전송 이후 추가된 시간 계산
-                const areaStartTime = this.trackingState.areaTimers.get(areaId);
-                const incrementalTimeMs = currentTime - Math.max(areaStartTime, lastSentTime);
-                const incrementalTimeSeconds = Math.round(incrementalTimeMs / 1000); // 밀리초를 초로 변환
-                
-                if (incrementalTimeSeconds > 0) {
-                    incrementalAreas.push({
-                        ...areaData,
-                        timeSpent: incrementalTimeSeconds, // 누적이 아닌 증분 시간 (초 단위)
-                        visibility: {
-                            ...areaData.visibility,
-                            visibleTime: incrementalTimeSeconds
-                        },
-                        lastEngagement: currentTime
-                    });
-                }
-            } else {
-                // 비활성 영역: 마지막 전송 이후 변경사항이 있는지 확인
-                if (areaData.lastEngagement > lastSentTime) {
-                    const incrementalTimeMs = areaData.lastEngagement - lastSentTime;
-                    const incrementalTimeSeconds = Math.round(incrementalTimeMs / 1000); // 밀리초를 초로 변환
+                // 3분 이상 체류한 영역은 데이터 전송에서 제외 (자리비움으로 간주)
+                const isTimeout = this.trackingState.areaTimeoutFlags.get(areaId);
+                if (isTimeout) {
+                    this.log(`Area ${areaId} skipped from data transmission due to 3-minute timeout`);
+                } else {
+                    // 활성 영역: 마지막 전송 이후 추가된 시간 계산 (검증된 시간만)
+                    const validatedStartTime = timerData.validatedStartTime.getTime();
+                    const incrementalTimeMs = currentTime.getTime() - Math.max(validatedStartTime, lastSentTime);
+                    const incrementalTimeSeconds = Math.round(incrementalTimeMs / 1000);
                     
                     if (incrementalTimeSeconds > 0) {
                         incrementalAreas.push({
                             ...areaData,
-                            timeSpent: incrementalTimeSeconds,
+                            timeSpent: incrementalTimeSeconds, // 누적이 아닌 증분 시간 (초 단위)
                             visibility: {
                                 ...areaData.visibility,
                                 visibleTime: incrementalTimeSeconds
-                            }
+                            },
+                            lastEngagement: currentTime
                         });
+                    }
+                }
+            } else {
+                // 비활성 영역: 마지막 전송 이후 변경사항이 있는지 확인
+                if (areaData.lastEngagement) {
+                    const lastEngagementTime = areaData.lastEngagement instanceof Date 
+                        ? areaData.lastEngagement.getTime() 
+                        : areaData.lastEngagement;
+                    
+                    if (lastEngagementTime > lastSentTime) {
+                        const incrementalTimeMs = lastEngagementTime - lastSentTime;
+                        const incrementalTimeSeconds = Math.round(incrementalTimeMs / 1000); // 밀리초를 초로 변환
+                        
+                        if (incrementalTimeSeconds > 0) {
+                            incrementalAreas.push({
+                                ...areaData,
+                                timeSpent: incrementalTimeSeconds,
+                                visibility: {
+                                    ...areaData.visibility,
+                                    visibleTime: incrementalTimeSeconds
+                                }
+                            });
+                        }
                     }
                 }
             }
             
-            // 마지막 전송 시간 업데이트
-            this.trackingState.lastSentTimes.set(areaId, currentTime);
+            // 마지막 전송 시간 업데이트 (밀리초 타임스탬프로 저장)
+            this.trackingState.lastSentTimes.set(areaId, currentTime.getTime());
         });
 
         this.log('Incremental areas calculated:', incrementalAreas.length);
@@ -971,6 +1187,7 @@ class UserAnalytics {
                 // 세션 종료 시 localStorage에서 세션 정보 제거
                 localStorage.removeItem('analytics_session_id');
                 localStorage.removeItem('analytics_session_start');
+                localStorage.removeItem('analytics_session_last_activity');
             }
         } catch (error) {
             this.log('Error ending session:', error);
@@ -1042,6 +1259,9 @@ class UserAnalytics {
         // 마지막 데이터 전송
         this.sendAnalyticsData();
         this.endSession();
+
+        // 싱글톤 인스턴스 정리
+        UserAnalytics.instance = null;
 
         this.log('User analytics tracking stopped');
     }
@@ -1120,11 +1340,13 @@ async function sendAnalyticsData(isBeforeUnload = false) {
     }
 }
 
-// 전역 인스턴스 생성
-window.UserAnalytics = new UserAnalytics({
-    debug: true, // 개발 중에는 디버그 모드 활성화
-    sendInterval: 30000 // 30초마다 전송
-});
+// 전역 인스턴스 생성 (싱글톤 패턴)
+if (!window.UserAnalytics) {
+    window.UserAnalytics = new UserAnalytics({
+        debug: true, // 개발 중에는 디버그 모드 활성화
+        sendInterval: 30000 // 30초마다 전송
+    });
+}
 
 // CSS 애니메이션 동적 추가
 if (!document.getElementById('analytics-styles')) {
