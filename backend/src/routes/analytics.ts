@@ -132,18 +132,35 @@ export function createAnalyticsRoutes(analyticsModel: AnalyticsModel): Router {
             // 세션 생성 또는 업데이트
             await analyticsModel.createOrUpdateSession(sessionId, visitorId, startTime, endTime, userAgent);
 
-            // 페이지뷰 저장
-            const pageviewId = await analyticsModel.createPageview({
-                sessionId,
-                pageUrl: pathname, // pathname만 저장
-                pageTitle: analyticsData.pageTitle,
-                loadTime: analyticsData.performance.loadTime,
-                domContentLoaded: analyticsData.performance.domContentLoaded,
-                firstPaint: analyticsData.performance.firstPaint,
-                firstContentfulPaint: analyticsData.performance.firstContentfulPaint,
-                startTime: new Date(analyticsData.startTime),
-                endTime: analyticsData.endTime ? new Date(analyticsData.endTime) : null
-            });
+            // 페이지뷰 저장 또는 기존 페이지뷰 찾기
+            let pageviewId;
+            try {
+                // 기존 페이지뷰 찾기 (같은 세션, 같은 URL)
+                pageviewId = await analyticsModel.findOrCreatePageview({
+                    sessionId,
+                    pageUrl: pathname,
+                    pageTitle: analyticsData.pageTitle,
+                    loadTime: analyticsData.performance.loadTime,
+                    domContentLoaded: analyticsData.performance.domContentLoaded,
+                    firstPaint: analyticsData.performance.firstPaint,
+                    firstContentfulPaint: analyticsData.performance.firstContentfulPaint,
+                    startTime: new Date(analyticsData.startTime),
+                    endTime: analyticsData.endTime ? new Date(analyticsData.endTime) : null
+                });
+            } catch (error) {
+                // 기존 방식으로 폴백
+                pageviewId = await analyticsModel.createPageview({
+                    sessionId,
+                    pageUrl: pathname,
+                    pageTitle: analyticsData.pageTitle,
+                    loadTime: analyticsData.performance.loadTime,
+                    domContentLoaded: analyticsData.performance.domContentLoaded,
+                    firstPaint: analyticsData.performance.firstPaint,
+                    firstContentfulPaint: analyticsData.performance.firstContentfulPaint,
+                    startTime: new Date(analyticsData.startTime),
+                    endTime: analyticsData.endTime ? new Date(analyticsData.endTime) : null
+                });
+            }
 
             // 영역 체류 시간 저장
             for (const area of analyticsData.areaEngagements) {

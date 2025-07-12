@@ -204,6 +204,76 @@ export class AnalyticsModel {
         }
     }
 
+    async findOrCreatePageview(pageview: Pageview): Promise<number> {
+        // 먼저 기존 페이지뷰 찾기
+        const findQuery = `
+            SELECT pageview_id 
+            FROM pageviews 
+            WHERE session_id = $1 AND page_url = $2
+            ORDER BY created_at DESC
+            LIMIT 1
+        `;
+
+        try {
+            const result = await this.withConnection(async (client) => {
+                const findResult = await client.query(findQuery, [
+                    pageview.sessionId,
+                    pageview.pageUrl
+                ]);
+
+                if (findResult.rows.length > 0) {
+                    // 기존 페이지뷰 존재 - 업데이트
+                    const pageviewId = findResult.rows[0].pageview_id;
+                    
+                    const updateQuery = `
+                        UPDATE pageviews 
+                        SET end_time = $1, updated_at = CURRENT_TIMESTAMP
+                        WHERE pageview_id = $2
+                    `;
+                    
+                    await client.query(updateQuery, [
+                        pageview.endTime,
+                        pageviewId
+                    ]);
+                    
+                    logger.info('Updated existing pageview:', { pageviewId, sessionId: pageview.sessionId, pageUrl: pageview.pageUrl });
+                    return pageviewId;
+                } else {
+                    // 새 페이지뷰 생성
+                    const insertQuery = `
+                        INSERT INTO pageviews (
+                            session_id, page_url, page_title, load_time,
+                            dom_content_loaded, first_paint, first_contentful_paint,
+                            start_time, end_time
+                        )
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        RETURNING pageview_id
+                    `;
+
+                    const insertResult = await client.query(insertQuery, [
+                        pageview.sessionId,
+                        pageview.pageUrl,
+                        pageview.pageTitle,
+                        pageview.loadTime,
+                        pageview.domContentLoaded,
+                        pageview.firstPaint,
+                        pageview.firstContentfulPaint,
+                        pageview.startTime,
+                        pageview.endTime
+                    ]);
+                    
+                    const pageviewId = insertResult.rows[0].pageview_id;
+                    logger.info('Created new pageview:', { pageviewId, sessionId: pageview.sessionId, pageUrl: pageview.pageUrl });
+                    return pageviewId;
+                }
+            });
+            return result;
+        } catch (error) {
+            logger.error('Error finding or creating pageview:', error);
+            throw error;
+        }
+    }
+
     async createAreaEngagement(engagement: AreaEngagement): Promise<void> {
         const query = `
             INSERT INTO area_engagements (
