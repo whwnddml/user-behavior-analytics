@@ -312,7 +312,10 @@ export class AnalyticsModel {
             params.push(new Date(startDate));
         }
         if (endDate) {
-            params.push(new Date(endDate));
+            // endDate는 해당 날짜의 23:59:59까지 포함하도록 설정
+            const endDateTime = new Date(endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+            params.push(endDateTime);
         }
         
         // 페이지 필터 조건 설정
