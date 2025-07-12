@@ -283,16 +283,20 @@ async function sendAnalytics() {
     }
 }
 
-// 페이지 언로드 시 세션 종료 및 데이터 전송
-window.addEventListener('beforeunload', async () => {
-    await Promise.all([
-        sendAnalytics(),
-        endSession()
-    ]);
-});
-
-// 주기적으로 데이터 전송 (5분마다)
-setInterval(sendAnalytics, 5 * 60 * 1000);
+// 대시보드 페이지에서는 데이터 수집을 하지 않습니다.
+// 데이터 수집은 user-analytics.js가 담당합니다.
+// 
+// 주의: 아래 코드들은 대시보드가 아닌 실제 사용자 페이지에서만 실행되어야 합니다.
+// 현재는 대시보드 전용이므로 비활성화합니다.
+//
+// window.addEventListener('beforeunload', async () => {
+//     await Promise.all([
+//         sendAnalytics(),
+//         endSession()
+//     ]);
+// });
+//
+// setInterval(sendAnalytics, 5 * 60 * 1000);
 
 // API 설정
 const hostname = window.location.hostname;
