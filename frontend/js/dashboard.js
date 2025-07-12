@@ -331,9 +331,23 @@ function showError(message) {
     }, 5000);
 }
 
-// 유틸리티 함수
+// 날짜 포맷팅 함수 (KST 기준)
 function formatDate(date) {
-    return date.toISOString().split('T')[0];
+    // console.warn('=== formatDate 함수 실행 ===');
+    // console.warn('입력된 날짜 객체:', {
+    //     date: date,
+    //     type: typeof date,
+    //     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    // });
+
+    // KST 기준으로 년,월,일 추출
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    const result = `${year}-${month}-${day}`;
+    // console.warn('변환 결과:', result);
+    return result;
 }
 
 function formatNumber(number, decimals = 0) {
@@ -725,37 +739,58 @@ async function loadDashboardData() {
         const dateFromInput = document.getElementById('date-from');
         const dateToInput = document.getElementById('date-to');
         
-        // 기본값: 지난 7일
-        const today = new Date();
-        const lastWeek = new Date();
-        lastWeek.setDate(today.getDate() - 7);
-        
-        // 날짜 입력 필드에 기본값 설정
-        if (dateFromInput && !dateFromInput.value) {
-            dateFromInput.value = formatDate(lastWeek);
+        // 현재 시간 (KST)
+        const now = new Date();
+        const offset = now.getTimezoneOffset() + 540; // UTC+9
+        const kstNow = new Date(now.getTime() + offset * 60000);
+
+        let startDate, endDate;
+
+        // 사용자가 선택한 날짜가 있는지 확인
+        if (dateFromInput?.value && dateToInput?.value) {
+            // 사용자가 선택한 날짜를 KST로 변환
+            const selectedStart = new Date(dateFromInput.value + 'T00:00:00+09:00');
+            const selectedEnd = new Date(dateToInput.value + 'T23:59:59.999+09:00');
+            
+            // 현재 날짜도 자정까지로 설정
+            const todayEnd = new Date(kstNow);
+            todayEnd.setHours(23, 59, 59, 999);
+            
+            // 미래 날짜 체크 (현재 날짜의 자정까지는 허용)
+            if (selectedEnd > todayEnd) {
+                showError('종료일은 현재 날짜보다 클 수 없습니다.');
+                return;
+            }
+            
+            // 시작일이 종료일보다 늦은지 체크
+            if (selectedStart > selectedEnd) {
+                showError('시작일은 종료일보다 클 수 없습니다.');
+                return;
+            }
+
+            startDate = formatDate(selectedStart);
+            endDate = formatDate(selectedEnd);
+        } else {
+            // 기본값: 오늘부터 7일 전
+            const today = new Date(kstNow);
+            today.setHours(23, 59, 59, 999);
+
+            const lastWeek = new Date(kstNow);
+            lastWeek.setDate(kstNow.getDate() - 6);
+            lastWeek.setHours(0, 0, 0, 0);
+
+            startDate = formatDate(lastWeek);
+            endDate = formatDate(today);
+
+            // 입력 필드 기본값 설정
+            if (dateFromInput) dateFromInput.value = startDate;
+            if (dateToInput) dateToInput.value = endDate;
         }
-        if (dateToInput && !dateToInput.value) {
-            dateToInput.value = formatDate(today);
-        }
-        
-        // 입력된 날짜 사용
-        const dateFrom = dateFromInput?.value ? new Date(dateFromInput.value) : lastWeek;
-        const dateTo = dateToInput?.value ? new Date(dateToInput.value) : today;
-        
-        // 미래 날짜 체크
-        if (dateTo > today) {
-            showError('종료일은 현재 날짜보다 클 수 없습니다.');
-            return;
-        }
-        
-        if (dateFrom > dateTo) {
-            showError('시작일은 종료일보다 클 수 없습니다.');
-            return;
-        }
-        
+
+        // API 호출을 위한 날짜 파라미터 설정
         const params = {
-            startDate: formatDate(dateFrom),
-            endDate: formatDate(dateTo)
+            startDate,
+            endDate
         };
         
         // 페이지 필터 적용
