@@ -29,8 +29,27 @@ const areaDefinitions = [
     // 다른 영역 정의...
 ];
 
+// 방문자 ID 생성 및 관리
+function getOrCreateVisitorId() {
+    let visitorId = localStorage.getItem('analytics_visitor_id');
+    if (!visitorId) {
+        visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('analytics_visitor_id', visitorId);
+        console.log('새로운 방문자 ID 생성:', visitorId);
+    } else {
+        console.log('기존 방문자 ID 사용:', visitorId);
+    }
+    return visitorId;
+}
+
+// 세션 ID 생성
+function generateSessionId() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
 // 데이터 저장소
 const analyticsData = {
+    visitorId: getOrCreateVisitorId(),
     sessionId: generateSessionId(),
     startTime: new Date(),
     areaEngagement: {},
@@ -47,11 +66,6 @@ const analyticsData = {
     interactionMap: [],
     formAnalytics: []
 };
-
-// 세션 ID 생성
-function generateSessionId() {
-    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-}
 
 // 영역 체류 시간 추적
 function initAreaEngagement() {
