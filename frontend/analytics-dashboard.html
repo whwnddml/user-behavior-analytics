@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>사용자 행동 분석 대시보드</title>
     
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- 커스텀 스타일 -->
+    <link href="css/common.css" rel="stylesheet">
+    <link href="css/analytics-dashboard.css" rel="stylesheet">
+
     <!-- API 설정 -->
     <script>
         // API 설정 초기화
@@ -31,32 +41,7 @@
 
         // 차트 객체 저장소
         window.charts = {};
-
-        // 페이지 로드 시 초기화
-        window.addEventListener('load', function() {
-            // 차트 초기화
-            initializeCharts();
-            
-            // 데이터 로드
-            loadDashboardData();
-            
-            // 주기적 헬스체크 시작
-            setInterval(performHealthCheck, 300000); // 5분마다
-            
-            // 초기 헬스체크 실행
-            performHealthCheck();
-        });
     </script>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- 커스텀 스타일 -->
-    <link href="css/common.css" rel="stylesheet">
-    <link href="css/analytics-dashboard.css" rel="stylesheet">
 
     <style>
         /* 반응형 테이블 스타일 */
@@ -313,37 +298,7 @@
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- 분석 유틸리티 및 차트 관련 함수들 -->
+    <!-- 분석 스크립트 -->
     <script src="js/analytics.js"></script>
-    
-    <!-- 기본 설정 및 초기화 -->
-    <script>
-        // API 설정 (전역 객체로 설정)
-        window.API_CONFIG = {
-            baseUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://localhost:3000/api/analytics'
-                : 'https://user-behavior-analytics.onrender.com/api/analytics',
-            endpoints: {
-                stats: '/dashboard/stats',
-                health: '/health',
-                healthDb: '/health/db',
-                session: '/session',
-                sessionEnd: '/session/end',
-                collect: '/collect'
-            }
-        };
-
-        // 차트 객체 저장소 (전역 객체로 설정)
-        window.charts = {
-            areaChart: null,
-            deviceChart: null,
-            timeChart: null
-        };
-    </script>
-
-    </div>
 </body>
 </html> 

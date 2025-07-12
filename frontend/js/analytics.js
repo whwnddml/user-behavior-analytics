@@ -409,6 +409,15 @@ window.charts = {
     browserChart: null
 };
 
+/**
+ * ⚠️ 차트 초기화 관련 주의사항
+ * 1. 모든 차트 초기화는 반드시 DOMContentLoaded 이벤트 이후에 실행되어야 합니다.
+ * 2. 차트 초기화 전에 캔버스 요소가 DOM에 존재하는지 확인이 필요합니다.
+ * 3. 'Cannot read properties of null (reading 'getContext')' 에러가 발생하면
+ *    차트 초기화 시점과 스크립트 로드 순서를 확인하세요.
+ * 4. 차트 관련 스크립트는 HTML body 최하단에 배치해야 합니다.
+ */
+
 // 차트 초기화
 function initializeCharts() {
     // 기존 차트 정리
@@ -775,10 +784,19 @@ function updateSessionsTable(sessions) {
 }
 
 // 이벤트 리스너 등록
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
+    // 차트 초기화
     initializeCharts();
+    
+    // 데이터 로드
     loadDashboardData();
     
+    // 주기적 헬스체크 시작
+    setInterval(performHealthCheck, 300000); // 5분마다
+    
+    // 초기 헬스체크 실행
+    performHealthCheck();
+
     // 필터 변경 이벤트
     ['date-from', 'date-to', 'page-filter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', loadDashboardData);
