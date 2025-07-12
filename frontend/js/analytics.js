@@ -416,11 +416,7 @@ function initializeCharts() {
         if (chart) chart.destroy();
     });
 
-    // "데이터가 없습니다" 메시지 제거
-    const noDataElements = document.querySelectorAll('.no-data');
-    noDataElements.forEach(element => element.remove());
-
-    // 현재 페이지에 있는 차트만 초기화
+    // 영역별 체류시간 차트
     const areaChartElement = document.getElementById('areaChart');
     if (areaChartElement) {
         window.charts.areaChart = new Chart(areaChartElement, {
@@ -464,6 +460,7 @@ function initializeCharts() {
         });
     }
 
+    // 디바이스별 사용자 분포
     const deviceChartElement = document.getElementById('deviceChart');
     if (deviceChartElement) {
         window.charts.deviceChart = new Chart(deviceChartElement, {
@@ -492,39 +489,38 @@ function initializeCharts() {
         });
     }
 
-    // 브라우저 차트 초기화
-    const browserCtx = document.getElementById('browser-chart').getContext('2d');
-    window.charts.browserChart = new Chart(browserCtx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: '세션 수',
-                data: [],
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
+    // 브라우저별 사용자 분포
+    const browserChartElement = document.getElementById('browserChart');
+    if (browserChartElement) {
+        window.charts.browserChart = new Chart(browserChartElement, {
+            type: 'pie',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)',
+                        'rgba(75, 192, 192, 0.5)',
+                        'rgba(153, 102, 255, 0.5)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '브라우저별 사용자 분포'
                     }
                 }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
             }
-        }
-    });
+        });
+    }
 
+    // 시간대별 활동량
     const timeChartElement = document.getElementById('timeChart');
     if (timeChartElement) {
         window.charts.timeChart = new Chart(timeChartElement, {
@@ -689,13 +685,6 @@ async function loadDashboardData() {
 // 차트 업데이트
 function updateCharts(data) {
     try {
-        // 데이터가 없는 경우 처리
-        if (!data || !data.stats || Object.keys(data.stats).length === 0) {
-            Object.keys(window.charts).forEach(chartId => showNoData(chartId));
-            removeChartLoading();
-            return;
-        }
-
         const stats = data.stats;
 
         // Overview 통계 업데이트
@@ -736,7 +725,7 @@ function updateCharts(data) {
 
         // 브라우저별 통계
         if (stats.browsers && stats.browsers.length > 0) {
-            window.charts.browserChart.data.labels = stats.browsers.map(browser => `${browser.browser_name} ${browser.browser_version}`);
+            window.charts.browserChart.data.labels = stats.browsers.map(browser => browser.browser_name);
             window.charts.browserChart.data.datasets[0].data = stats.browsers.map(browser => browser.session_count);
             window.charts.browserChart.update();
         } else {
