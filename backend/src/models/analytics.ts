@@ -558,7 +558,7 @@ export class AnalyticsModel {
                 this.withConnection(async (client) => {
                     const result = await client.query(`
                         SELECT 
-                            EXTRACT(HOUR FROM s.start_time) as hour,
+                            EXTRACT(HOUR FROM s.start_time AT TIME ZONE 'Asia/Seoul') as hour,
                             COUNT(DISTINCT s.session_id) as session_count,
                             COUNT(DISTINCT p.pageview_id) as pageview_count
                         FROM sessions s
@@ -566,7 +566,7 @@ export class AnalyticsModel {
                         WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
                         AND ($2::timestamp IS NULL OR s.start_time <= $2)
                         ${pageFilterCondition}
-                        GROUP BY EXTRACT(HOUR FROM s.start_time)
+                        GROUP BY EXTRACT(HOUR FROM s.start_time AT TIME ZONE 'Asia/Seoul')
                         ORDER BY hour
                     `, params);
                     return result.rows;
