@@ -318,15 +318,15 @@ export class AnalyticsModel {
         // 페이지 필터 조건 설정
         let pageFilterCondition = '';
         if (pageFilter) {
-            // URL 경로 정규화: 앞뒤 슬래시 제거 및 중복 슬래시 처리
-            pageFilterCondition = `AND regexp_replace(regexp_replace(p.page_url, '^/+|/+$', ''), '/+', '/') = regexp_replace(regexp_replace($${params.length + 1}, '^/+|/+$', ''), '/+', '/')`;
+            // URL 경로 끝부분 매칭: 필터 경로로 끝나는 페이지 URL 찾기
+            pageFilterCondition = `AND p.page_url LIKE '%' || $${params.length + 1}`;
             params.push(pageFilter);
             
             // 로깅 추가
             logger.info('Page filter condition:', {
                 condition: pageFilterCondition,
                 pageFilter,
-                normalizedFilter: pageFilter.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/')
+                explanation: `Looking for page URLs ending with: ${pageFilter}`
             });
         }
 
