@@ -57,7 +57,8 @@ class UserAnalytics {
             formStates: new Map(),
             clickCount: 0,
             sessionStarted: false,
-            isPageVisible: !document.hidden // 페이지 가시성 상태 추가
+            isPageVisible: !document.hidden, // 페이지 가시성 상태 추가
+            lastSentTimes: new Map() // 각 영역별 마지막 전송 시간 추적
         };
 
         // 이벤트 핸들러 바인딩
@@ -694,12 +695,46 @@ class UserAnalytics {
                 return isNaN(num) ? defaultValue : Math.round(num);
             };
 
-            // 현재 상태 업데이트
-            this.updateActiveAreaTimers();
-
             // 기본 배열 데이터 초기화
             if (!this.analyticsData.interactionMap) this.analyticsData.interactionMap = [];
             if (!this.analyticsData.formAnalytics) this.analyticsData.formAnalytics = [];
+
+            // 증분 데이터 계산 (누적 대신 증분 시간만 전송)
+            const incrementalAreas = isBeforeUnload ? 
+                // 페이지 종료 시에는 모든 데이터 전송
+                (this.analyticsData.areaEngagements || []).map(area => ({
+                    areaId: area.areaId,
+                    areaName: area.areaName,
+                    areaType: area.areaType || 'default',
+                    timeSpent: ensureNumber(area.timeSpent),
+                    interactions: ensureNumber(area.interactions),
+                    firstEngagement: toISOString(area.firstEngagement || this.analyticsData.startTime),
+                    lastEngagement: toISOString(area.lastEngagement || new Date()),
+                    visibility: {
+                        visibleTime: ensureNumber(area.visibility.visibleTime),
+                        viewportPercent: ensureNumber(area.visibility.viewportPercent)
+                    }
+                })) :
+                // 정기 전송 시에는 증분 데이터만 전송
+                this.calculateIncrementalData().map(area => ({
+                    areaId: area.areaId,
+                    areaName: area.areaName,
+                    areaType: area.areaType || 'default',
+                    timeSpent: ensureNumber(area.timeSpent),
+                    interactions: ensureNumber(area.interactions),
+                    firstEngagement: toISOString(area.firstEngagement || this.analyticsData.startTime),
+                    lastEngagement: toISOString(area.lastEngagement || new Date()),
+                    visibility: {
+                        visibleTime: ensureNumber(area.visibility.visibleTime),
+                        viewportPercent: ensureNumber(area.visibility.viewportPercent)
+                    }
+                }));
+
+            // 증분 데이터가 없으면 전송하지 않음
+            if (!isBeforeUnload && incrementalAreas.length === 0) {
+                this.log('No incremental data to send, skipping transmission');
+                return;
+            }
 
             // 전송할 데이터 준비
             const payload = {
@@ -717,19 +752,7 @@ class UserAnalytics {
                     firstContentfulPaint: ensureNumber(this.analyticsData.performance.firstContentfulPaint),
                     navigationtype: ensureNumber(this.analyticsData.performance.navigationtype, 0)
                 },
-                areaEngagements: (this.analyticsData.areaEngagements || []).map(area => ({
-                    areaId: area.areaId,
-                    areaName: area.areaName,
-                    areaType: area.areaType || 'default',
-                    timeSpent: ensureNumber(area.timeSpent),
-                    interactions: ensureNumber(area.interactions),
-                    firstEngagement: toISOString(area.firstEngagement || this.analyticsData.startTime),
-                    lastEngagement: toISOString(area.lastEngagement || new Date()),
-                    visibility: {
-                        visibleTime: ensureNumber(area.visibility.visibleTime),
-                        viewportPercent: ensureNumber(area.visibility.viewportPercent)
-                    }
-                })),
+                areaEngagements: incrementalAreas,
                 interactionMap: (this.analyticsData.interactionMap || []).map(interaction => ({
                     x: ensureNumber(interaction.x),
                     y: ensureNumber(interaction.y),
@@ -799,7 +822,7 @@ class UserAnalytics {
     }
 
     /**
-     * 활성 영역 타이머 업데이트
+     * 활성 영역 타이머 업데이트 (증분 방식)
      */
     updateActiveAreaTimers() {
         const currentTime = new Date();
@@ -816,6 +839,63 @@ class UserAnalytics {
         this.trackingState.areaTimers.forEach((startTime, areaId) => {
             this.trackingState.areaTimers.set(areaId, currentTime);
         });
+    }
+
+    /**
+     * 증분 데이터 계산 및 준비
+     */
+    calculateIncrementalData() {
+        const currentTime = new Date();
+        const incrementalAreas = [];
+
+        // 각 영역별로 증분 시간 계산
+        this.analyticsData.areaEngagements.forEach(areaData => {
+            const areaId = areaData.areaId;
+            const lastSentTime = this.trackingState.lastSentTimes.get(areaId) || areaData.firstEngagement;
+            
+            // 현재 활성 영역인지 확인
+            const isActive = this.trackingState.areaTimers.has(areaId);
+            
+            if (isActive) {
+                // 활성 영역: 마지막 전송 이후 추가된 시간 계산
+                const areaStartTime = this.trackingState.areaTimers.get(areaId);
+                const incrementalTime = currentTime - Math.max(areaStartTime, lastSentTime);
+                
+                if (incrementalTime > 0) {
+                    incrementalAreas.push({
+                        ...areaData,
+                        timeSpent: incrementalTime, // 누적이 아닌 증분 시간
+                        visibility: {
+                            ...areaData.visibility,
+                            visibleTime: incrementalTime
+                        },
+                        lastEngagement: currentTime
+                    });
+                }
+            } else {
+                // 비활성 영역: 마지막 전송 이후 변경사항이 있는지 확인
+                if (areaData.lastEngagement > lastSentTime) {
+                    const incrementalTime = areaData.lastEngagement - lastSentTime;
+                    
+                    if (incrementalTime > 0) {
+                        incrementalAreas.push({
+                            ...areaData,
+                            timeSpent: incrementalTime,
+                            visibility: {
+                                ...areaData.visibility,
+                                visibleTime: incrementalTime
+                            }
+                        });
+                    }
+                }
+            }
+            
+            // 마지막 전송 시간 업데이트
+            this.trackingState.lastSentTimes.set(areaId, currentTime);
+        });
+
+        this.log('Incremental areas calculated:', incrementalAreas.length);
+        return incrementalAreas;
     }
 
     /**
