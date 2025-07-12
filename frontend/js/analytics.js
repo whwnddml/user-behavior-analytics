@@ -569,10 +569,12 @@ function initializeCharts() {
             data: {
                 labels: Array.from({length: 24}, (_, i) => `${i}시`),
                 datasets: [{
-                    label: '활동량',
+                    label: '세션 수',
                     data: [],
                     borderColor: 'rgba(75, 192, 192, 1)',
-                    tension: 0.1
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1,
+                    fill: true
                 }]
             },
             options: {
@@ -581,7 +583,43 @@ function initializeCharts() {
                 plugins: {
                     title: {
                         display: true,
-                        text: '시간대별 활동량'
+                        text: '시간대별 활동량 (선택 기간 내 총 세션 수)'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const hour = context[0].label;
+                                return `${hour} (${hour.replace('시', '')}:00 ~ ${hour.replace('시', '')}:59)`;
+                            },
+                            label: function(context) {
+                                const value = context.raw || 0;
+                                const dateFrom = document.getElementById('date-from')?.value;
+                                const dateTo = document.getElementById('date-to')?.value;
+                                let period = '';
+                                if (dateFrom && dateTo) {
+                                    period = ` (${dateFrom} ~ ${dateTo})`;
+                                }
+                                return `총 세션 수: ${value}개${period}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '세션 수'
+                        },
+                        ticks: {
+                            stepSize: 1
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '시간대'
+                        }
                     }
                 }
             }
