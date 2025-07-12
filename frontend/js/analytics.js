@@ -401,14 +401,6 @@ function showNoData(chartId) {
     container.appendChild(noDataDiv);
 }
 
-// 차트 객체 저장소
-window.charts = {
-    areaChart: null,
-    deviceChart: null,
-    timeChart: null,
-    browserChart: null
-};
-
 /**
  * ⚠️ 차트 초기화 관련 주의사항
  * 1. 모든 차트 초기화는 반드시 DOMContentLoaded 이벤트 이후에 실행되어야 합니다.
@@ -417,6 +409,14 @@ window.charts = {
  *    차트 초기화 시점과 스크립트 로드 순서를 확인하세요.
  * 4. 차트 관련 스크립트는 HTML body 최하단에 배치해야 합니다.
  */
+
+// 차트 객체 저장소 초기화
+window.charts = {
+    areaChart: null,
+    deviceChart: null,
+    timeChart: null,
+    browserChart: null
+};
 
 // 차트 초기화
 function initializeCharts() {
@@ -427,7 +427,12 @@ function initializeCharts() {
 
     // 영역별 체류시간 차트
     const areaChartElement = document.getElementById('areaChart');
-    if (areaChartElement) {
+    if (!areaChartElement) {
+        console.warn('차트 초기화 실패: areaChart 엘리먼트를 찾을 수 없습니다.');
+        return;
+    }
+
+    try {
         window.charts.areaChart = new Chart(areaChartElement, {
             type: 'bar',
             data: {
@@ -467,6 +472,9 @@ function initializeCharts() {
                 }
             }
         });
+    } catch (error) {
+        console.error('차트 초기화 중 오류 발생:', error);
+        showError('차트를 초기화하는 중 오류가 발생했습니다.');
     }
 
     // 디바이스별 사용자 분포
@@ -783,24 +791,32 @@ function updateSessionsTable(sessions) {
     }
 }
 
-// 이벤트 리스너 등록
+// 이벤트 리스너 등록 - DOMContentLoaded 이벤트가 발생한 후에만 차트 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    // 차트 초기화
-    initializeCharts();
-    
-    // 데이터 로드
-    loadDashboardData();
-    
-    // 주기적 헬스체크 시작
-    setInterval(performHealthCheck, 300000); // 5분마다
-    
-    // 초기 헬스체크 실행
-    performHealthCheck();
+    try {
+        // 차트 초기화
+        initializeCharts();
+        
+        // 데이터 로드
+        loadDashboardData();
+        
+        // 주기적 헬스체크 시작
+        setInterval(performHealthCheck, 300000); // 5분마다
+        
+        // 초기 헬스체크 실행
+        performHealthCheck();
 
-    // 필터 변경 이벤트
-    ['date-from', 'date-to', 'page-filter'].forEach(id => {
-        document.getElementById(id)?.addEventListener('change', loadDashboardData);
-    });
+        // 필터 변경 이벤트
+        ['date-from', 'date-to', 'page-filter'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', loadDashboardData);
+            }
+        });
+    } catch (error) {
+        console.error('초기화 중 오류 발생:', error);
+        showError('대시보드를 초기화하는 중 오류가 발생했습니다.');
+    }
 });
 
 // 세션 관리
