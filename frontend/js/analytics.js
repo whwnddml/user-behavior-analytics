@@ -514,6 +514,7 @@ function initializeCharts() {
             data: {
                 labels: [],
                 datasets: [{
+                    label: '브라우저별 사용자 수',
                     data: [],
                     backgroundColor: [
                         'rgba(255, 99, 132, 0.5)',
@@ -531,6 +532,21 @@ function initializeCharts() {
                     title: {
                         display: true,
                         text: '브라우저별 사용자 분포'
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '알 수 없음';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value}명 (${percentage}%)`;
+                            }
+                        }
                     }
                 }
             }
@@ -732,7 +748,7 @@ function updateCharts(data) {
 
         // 영역별 체류시간
         if (stats.areas && stats.areas.length > 0) {
-            window.charts.areaChart.data.labels = stats.areas.map(area => area.area_name);
+            window.charts.areaChart.data.labels = stats.areas.map(area => area.area_name || '알 수 없는 영역');
             window.charts.areaChart.data.datasets[0].data = stats.areas.map(area => area.avg_time_spent);
             window.charts.areaChart.update();
         } else {
@@ -750,12 +766,15 @@ function updateCharts(data) {
 
         // 브라우저별 통계
         if (stats.browsers && stats.browsers.length > 0) {
-            window.charts.browserChart.data.labels = stats.browsers.map(browser => {
-                const name = browser.browser_name || '알 수 없음';
-                const version = browser.browser_version ? ` ${browser.browser_version}` : '';
+            // 브라우저 데이터 정렬 (세션 수 기준 내림차순)
+            const sortedBrowsers = [...stats.browsers].sort((a, b) => b.session_count - a.session_count);
+            
+            window.charts.browserChart.data.labels = sortedBrowsers.map(browser => {
+                const name = browser.browser || '알 수 없음';
+                const version = browser.version && browser.version !== 'unknown' ? ` ${browser.version}` : '';
                 return `${name}${version}`;
             });
-            window.charts.browserChart.data.datasets[0].data = stats.browsers.map(browser => browser.session_count);
+            window.charts.browserChart.data.datasets[0].data = sortedBrowsers.map(browser => browser.session_count);
             window.charts.browserChart.update();
         } else {
             showNoData('browserChart');
@@ -883,4 +902,4 @@ async function endSession() {
 setInterval(performHealthCheck, 10 * 60 * 1000);
 
 // 페이지 로드 시 즉시 한 번 실행
-performHealthCheck(); 
+performHealthCheck();
