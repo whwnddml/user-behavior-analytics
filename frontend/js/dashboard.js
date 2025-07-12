@@ -351,6 +351,18 @@ function formatDuration(seconds) {
     }
 }
 
+// 날짜 및 시간 포맷팅 함수
+function formatDateTime(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // API 호출 함수
 async function fetchAPI(endpoint, params = {}) {
     try {
@@ -579,20 +591,21 @@ function initializeCharts() {
         console.error('브라우저 차트 엘리먼트를 찾을 수 없습니다.');
     }
 
-    // 시간대별 활동량
+    // 시간대별 활동량 차트
     const timeChartElement = document.getElementById('timeChart');
     if (timeChartElement) {
         window.charts.timeChart = new Chart(timeChartElement, {
             type: 'line',
             data: {
-                labels: Array.from({length: 24}, (_, i) => `${i}시`),
+                labels: Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`),
                 datasets: [{
                     label: '세션 수',
-                    data: [],
+                    data: Array(24).fill(0),
                     borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                    tension: 0.1,
-                    fill: true
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
                 }]
             },
             options: {
@@ -601,42 +614,28 @@ function initializeCharts() {
                 plugins: {
                     title: {
                         display: true,
-                        text: '시간대별 활동량 (선택 기간 내 총 세션 수)'
+                        text: '시간대별 활동량 (24시간)'
                     },
                     tooltip: {
                         callbacks: {
                             title: function(context) {
-                                const hour = context[0].label;
-                                return `${hour} (${hour.replace('시', '')}:00 ~ ${hour.replace('시', '')}:59)`;
-                            },
-                            label: function(context) {
-                                const value = context.raw || 0;
-                                const dateFrom = document.getElementById('date-from')?.value;
-                                const dateTo = document.getElementById('date-to')?.value;
-                                let period = '';
-                                if (dateFrom && dateTo) {
-                                    period = ` (${dateFrom} ~ ${dateTo})`;
-                                }
-                                return `총 세션 수: ${value}개${period}`;
+                                return `${context[0].label} - ${String((parseInt(context[0].label) + 1) % 24).padStart(2, '0')}:00`;
                             }
                         }
                     }
                 },
                 scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '시간 (24시간)'
+                        }
+                    },
                     y: {
                         beginAtZero: true,
                         title: {
                             display: true,
                             text: '세션 수'
-                        },
-                        ticks: {
-                            stepSize: 1
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: '시간대'
                         }
                     }
                 }
@@ -907,7 +906,7 @@ function updateSessionsTable(sessions) {
         tbody.innerHTML = sessions.map(session => `
             <tr>
                 <td class="session-id">${session.session_id.substring(0, 8)}...</td>
-                <td class="date-col">${new Date(session.start_time).toLocaleString()}</td>
+                <td class="date-col">${formatDateTime(session.start_time)}</td>
                 <td class="device-col">${session.device_type}</td>
                 <td class="browser-info">${session.browser_name} ${session.browser_version}</td>
                 <td class="number-col">${session.pageviews}</td>
