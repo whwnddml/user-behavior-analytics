@@ -407,15 +407,15 @@ export class AnalyticsModel {
         // 페이지 필터 조건 설정
         let pageFilterCondition = '';
         if (pageFilter) {
-            // URL 경로 끝부분 매칭: 필터 경로로 끝나는 페이지 URL 찾기
-            pageFilterCondition = `AND p.page_url LIKE '%' || $${params.length + 1}`;
+            // 정확한 매칭: 선택한 필터와 정확히 일치하는 페이지 URL만 찾기
+            pageFilterCondition = `AND p.page_url = $${params.length + 1}`;
             params.push(pageFilter);
             
             // 로깅 추가
             logger.info('Page filter condition:', {
                 condition: pageFilterCondition,
                 pageFilter,
-                explanation: `Looking for page URLs ending with: ${pageFilter}`
+                explanation: `Looking for exact page URL match: ${pageFilter}`
             });
         }
 
