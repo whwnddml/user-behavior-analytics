@@ -67,6 +67,22 @@ export interface FormAnalytics {
 }
 
 export class AnalyticsModel {
+    /**
+     * 시간 값 정규화: 큰 값(밀리초)은 초로 변환, 작은 값은 그대로 유지
+     */
+    private normalizeTimeValue(timeValue: number): number {
+        if (timeValue == null || isNaN(timeValue)) return 0;
+        
+        // 1000000 이상의 값은 밀리초로 간주하고 초로 변환
+        // 이는 기존 밀리초 데이터와 새로운 초 데이터를 구분하기 위함
+        if (timeValue >= 1000000) {
+            return Math.round(timeValue / 1000);
+        }
+        
+        // 작은 값은 이미 초 단위로 간주
+        return Math.round(timeValue);
+    }
+
     private async withConnection<T>(operation: (client: any) => Promise<T>): Promise<T> {
         const client = await pool.connect();
         try {
@@ -548,8 +564,9 @@ export class AnalyticsModel {
                 areas: areas.map(row => ({
                     area_name: row.area_name,
                     visitor_count: parseInt(row.visitor_count),
-                    avg_time_spent: parseFloat(row.avg_time_spent),
-                    total_time_spent: parseFloat(row.total_time_spent),
+                    // 시간 데이터 정규화: 큰 값(밀리초)은 초로 변환, 작은 값은 그대로 유지
+                    avg_time_spent: this.normalizeTimeValue(parseFloat(row.avg_time_spent)),
+                    total_time_spent: this.normalizeTimeValue(parseFloat(row.total_time_spent)),
                     avg_viewport_percent: parseFloat(row.avg_viewport_percent),
                     view_count: parseInt(row.view_count)
                 })),
