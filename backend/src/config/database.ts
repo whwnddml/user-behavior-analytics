@@ -31,7 +31,15 @@ pool.on('error', (err, client) => {
   }, 5000);
 });
 
-pool.on('connect', () => {
+pool.on('connect', async (client) => {
+  try {
+    await client.query('SET timezone = "Asia/Seoul"');
+  } catch (error) {
+    logger.error('Failed to set timezone:', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+  
   logger.info('New client connected to database', {
     url: DATABASE_URL.replace(/:[^:]*@/, ':****@'), // 비밀번호 마스킹
     timestamp: new Date().toISOString()

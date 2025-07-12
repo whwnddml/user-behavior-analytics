@@ -1,5 +1,9 @@
 -- 사용자 행동 분석 데이터베이스 초기화 스크립트
 
+-- 타임존 설정
+ALTER DATABASE analytics SET timezone TO 'Asia/Seoul';
+SET timezone = 'Asia/Seoul';
+
 -- 확장 기능 활성화
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
