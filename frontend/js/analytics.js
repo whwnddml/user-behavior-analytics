@@ -223,14 +223,58 @@ function initFormAnalytics() {
 }
 
 // 데이터 전송
-function sendAnalytics() {
-    // 실제 구현에서는 배치로 데이터를 서버에 전송
-    console.log('분석 데이터:', analyticsData);
+async function sendAnalytics() {
+    try {
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.collect}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sessionId: analyticsData.sessionId,
+                visitorId: analyticsData.visitorId,
+                startTime: analyticsData.startTime,
+                endTime: new Date(),
+                pageUrl: window.location.href,
+                pageTitle: document.title,
+                userAgent: navigator.userAgent,
+                areaEngagements: Object.entries(analyticsData.areaEngagement).map(([areaId, data]) => ({
+                    areaId,
+                    areaName: document.querySelector(`[data-area-id="${areaId}"]`)?.dataset.areaName || areaId,
+                    areaType: document.querySelector(`[data-area-id="${areaId}"]`)?.dataset.areaType || 'unknown',
+                    timeSpent: data.timeSpent,
+                    interactions: data.interactions,
+                    firstEngagement: data.firstEngagement,
+                    lastEngagement: data.lastEngagement,
+                    visibility: data.visibility
+                })),
+                scrollMetrics: analyticsData.scrollMetrics,
+                interactionMap: analyticsData.interactionMap,
+                formAnalytics: analyticsData.formAnalytics
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Analytics data submission failed: ${response.status}`);
+        }
+
+        console.log('Analytics data sent successfully');
+        
+        // 성공적으로 전송된 데이터 초기화
+        analyticsData.interactionMap = [];
+        analyticsData.formAnalytics = [];
+        
+    } catch (error) {
+        console.error('Failed to send analytics data:', error);
+    }
 }
 
-// 페이지 언로드 시 데이터 전송
-window.addEventListener('beforeunload', () => {
-    sendAnalytics();
+// 페이지 언로드 시 세션 종료 및 데이터 전송
+window.addEventListener('beforeunload', async () => {
+    await Promise.all([
+        sendAnalytics(),
+        endSession()
+    ]);
 });
 
 // 주기적으로 데이터 전송 (5분마다)
@@ -244,11 +288,12 @@ const API_CONFIG = {
         : 'https://user-behavior-analytics.onrender.com/api/analytics',
     endpoints: {
         stats: '/dashboard/stats',
-        sessions: '/dashboard/sessions',
-        areaStats: '/area-stats',
-        hourlyStats: '/hourly-stats',
-        deviceStats: '/device-stats',
-        performanceStats: '/performance-stats'
+        health: '/health',
+        healthDb: '/health/db',
+        collect: '/collect',
+        session: '/session',
+        sessionEnd: '/session/end',
+        visitorSessions: '/visitor' // :visitorId/sessions will be appended
     }
 };
 
@@ -317,14 +362,33 @@ async function fetchAPI(endpoint, params = {}) {
 // 헬스체크 수행
 async function performHealthCheck() {
     try {
-        const response = await fetch(`${window.API_CONFIG.baseUrl}/healthz`);
-        if (!response.ok) {
-            throw new Error(`Health check failed: ${response.status}`);
+        // 서비스 전체 상태 체크 (데이터베이스 포함)
+        const healthResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.health}`);
+        if (!healthResponse.ok) {
+            throw new Error(`Health check failed: ${healthResponse.status}`);
         }
-        const data = await response.json();
-        console.log('Health check successful:', data);
+        const healthStatus = await healthResponse.json();
+        
+        // 서비스가 정상이 아닌 경우
+        if (healthStatus.status !== 'ok') {
+            console.warn('Service health degraded:', healthStatus);
+            showError('서비스 상태가 불안정합니다. 잠시 후 다시 시도해주세요.');
+            return false;
+        }
+
+        // 데이터베이스 연결 상태가 불안정한 경우
+        if (!healthStatus.database.connected) {
+            console.warn('Database connection unhealthy:', healthStatus);
+            showError('데이터베이스 연결이 불안정합니다. 잠시 후 다시 시도해주세요.');
+            return false;
+        }
+
+        console.log('Health check successful:', healthStatus);
+        return true;
     } catch (error) {
         console.error('Health check error:', error);
+        showError('서비스 상태 확인에 실패했습니다.');
+        return false;
     }
 }
 
@@ -450,6 +514,12 @@ function initializeCharts() {
 // 대시보드 데이터 로드
 async function loadDashboardData() {
     try {
+        // 서비스 상태 체크
+        const isHealthy = await performHealthCheck();
+        if (!isHealthy) {
+            return;
+        }
+
         // 날짜 필터 입력값 가져오기
         const dateFromInput = document.getElementById('date-from');
         const dateToInput = document.getElementById('date-to');
@@ -475,8 +545,8 @@ async function loadDashboardData() {
         }
         
         const params = {
-            dateFrom: formatDate(dateFrom),
-            dateTo: formatDate(dateTo)
+            startDate: formatDate(dateFrom),
+            endDate: formatDate(dateTo)
         };
         
         // 페이지 필터 적용
@@ -485,23 +555,20 @@ async function loadDashboardData() {
             params.page = pageFilter.value;
         }
         
-        const [
-            stats,
-            areaStats,
-            hourlyStats,
-            deviceStats
-        ] = await Promise.all([
-            fetchAPI('/api/analytics/dashboard/stats', params),
-            fetchAPI('/api/analytics/area-stats', params),
-            fetchAPI('/api/analytics/hourly-stats', params),
-            fetchAPI('/api/analytics/device-stats', params)
-        ]);
+        // 대시보드 통계 데이터 로드
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.stats}?${new URLSearchParams(params)}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch dashboard stats: ${response.status}`);
+        }
         
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || '데이터를 불러오는데 실패했습니다.');
+        }
+
+        // 차트 업데이트
         updateCharts({
-            stats,
-            areaStats,
-            hourlyStats,
-            deviceStats
+            stats: result.data
         });
     } catch (error) {
         console.error('대시보드 데이터 로드 실패:', error);
@@ -512,31 +579,70 @@ async function loadDashboardData() {
 // 차트 업데이트
 function updateCharts(data) {
     // 데이터가 없는 경우 처리
-    if (!data || Object.keys(data).length === 0) {
+    if (!data || !data.stats || Object.keys(data.stats).length === 0) {
         showNoData('areaChart');
         showNoData('deviceChart');
         showNoData('timeChart');
         return;
     }
 
+    const stats = data.stats;
+
+    // Overview 통계 업데이트
+    document.getElementById('total-sessions').textContent = formatNumber(stats.overview.total_sessions);
+    document.getElementById('total-pageviews').textContent = formatNumber(stats.overview.total_pageviews);
+    document.getElementById('total-interactions').textContent = formatNumber(stats.overview.total_interactions);
+    document.getElementById('avg-session-time').textContent = formatDuration(stats.overview.avg_session_time);
+
     // 영역별 체류시간
-    if (data.areaStats) {
-        window.charts.areaChart.data.labels = data.areaStats.map(stat => stat.areaName);
-        window.charts.areaChart.data.datasets[0].data = data.areaStats.map(stat => stat.avgTimeSpent);
+    if (stats.areas && stats.areas.length > 0) {
+        window.charts.areaChart.data.labels = stats.areas.map(area => area.area_name);
+        window.charts.areaChart.data.datasets[0].data = stats.areas.map(area => area.avg_time_spent);
         window.charts.areaChart.update();
+    } else {
+        showNoData('areaChart');
     }
 
     // 디바이스별 통계
-    if (data.deviceStats) {
-        window.charts.deviceChart.data.labels = data.deviceStats.map(stat => stat.deviceType);
-        window.charts.deviceChart.data.datasets[0].data = data.deviceStats.map(stat => stat.sessionCount);
+    if (stats.devices && stats.devices.length > 0) {
+        window.charts.deviceChart.data.labels = stats.devices.map(device => device.device_type);
+        window.charts.deviceChart.data.datasets[0].data = stats.devices.map(device => device.session_count);
         window.charts.deviceChart.update();
+    } else {
+        showNoData('deviceChart');
     }
 
-    // 시간대별 활동
-    if (data.hourlyStats) {
-        window.charts.timeChart.data.datasets[0].data = data.hourlyStats.map(stat => stat.sessionCount);
+    // 시간대별 활동량
+    if (stats.hourly && stats.hourly.length > 0) {
+        // 0-23시까지의 데이터 배열 초기화
+        const hourlyData = Array(24).fill(0);
+        
+        // 실제 데이터로 채우기
+        stats.hourly.forEach(hour => {
+            hourlyData[hour.hour] = hour.session_count;
+        });
+
+        window.charts.timeChart.data.datasets[0].data = hourlyData;
         window.charts.timeChart.update();
+    } else {
+        showNoData('timeChart');
+    }
+
+    // 최근 세션 테이블 업데이트
+    const tbody = document.getElementById('sessions-table-body');
+    if (stats.recent_sessions && stats.recent_sessions.length > 0) {
+        tbody.innerHTML = stats.recent_sessions.map(session => `
+            <tr>
+                <td class="session-id">${session.session_id.substring(0, 8)}...</td>
+                <td class="date-col">${new Date(session.start_time).toLocaleString()}</td>
+                <td class="device-col">${session.device_type}</td>
+                <td class="browser-info">${session.browser_name} ${session.browser_version}</td>
+                <td class="number-col">${session.pageviews}</td>
+                <td class="number-col">${session.total_interactions}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">데이터가 없습니다</td></tr>';
     }
 }
 
@@ -551,37 +657,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 세션 목록 조회
-async function loadSessionsTable() {
+// 세션 관리
+async function startSession(visitorId) {
     try {
-        const response = await fetch(`${window.API_CONFIG.baseUrl}${window.API_CONFIG.endpoints.sessions}?limit=10`);
-        if (!response.ok) throw new Error('API 요청 실패');
-        
-        const result = await response.json();
-        if (!result.success) throw new Error(result.message);
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.session}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ visitor_id: visitorId })
+        });
 
-        const tbody = document.getElementById('sessions-table-body');
-        tbody.innerHTML = result.data.map(session => `
-            <tr>
-                <td>${session.sessionId.substring(0, 8)}...</td>
-                <td>${new Date(session.startTime).toLocaleString()}</td>
-                <td>${session.deviceType || '-'}</td>
-                <td>${session.browserName || '-'}</td>
-                <td>${session.pageviews || 0}</td>
-                <td>${session.totalInteractions || 0}</td>
-            </tr>
-        `).join('');
+        if (!response.ok) {
+            throw new Error(`Failed to start session: ${response.status}`);
+        }
+
+        const result = await response.json();
+        analyticsData.sessionId = result.sessionId;
+        analyticsData.visitorId = visitorId;
+        
+        return result;
     } catch (error) {
-        console.error('세션 데이터 로드 실패:', error);
-        document.getElementById('sessions-table-body').innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center text-danger">
-                    데이터를 불러오는데 실패했습니다: ${error.message}
-                </td>
-            </tr>
-        `;
+        console.error('Failed to start session:', error);
+        throw error;
     }
-} 
+}
+
+async function endSession() {
+    if (!analyticsData.sessionId) return;
+    
+    try {
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.sessionEnd}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sessionId: analyticsData.sessionId })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to end session: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to end session:', error);
+    }
+}
 
 // 10분마다 헬스체크 실행 (15분 서스펜드 타임아웃 이전에 요청)
 setInterval(performHealthCheck, 10 * 60 * 1000);

@@ -10,20 +10,42 @@
         // API 설정 초기화
         window.API_CONFIG = {
             baseUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://localhost:3000'
-                : 'https://user-behavior-analytics.onrender.com',
+                ? 'http://localhost:3000/api/analytics'
+                : 'https://user-behavior-analytics.onrender.com/api/analytics',
             endpoints: {
-                stats: '/api/analytics/dashboard/stats',
-                areaStats: '/api/analytics/area-stats',
-                hourlyStats: '/api/analytics/hourly-stats',
-                deviceStats: '/api/analytics/device-stats',
-                health: '/api/analytics/health',
-                healthz: '/healthz'
+                // 대시보드 통계
+                stats: '/dashboard/stats',
+                
+                // 헬스체크
+                health: '/health',      // 서비스 및 DB 상태
+                healthDb: '/health/db', // 상세 DB 상태
+                
+                // 세션 관리
+                session: '/session',
+                sessionEnd: '/session/end',
+                
+                // 데이터 수집
+                collect: '/collect'
             }
         };
 
         // 차트 객체 저장소
         window.charts = {};
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', function() {
+            // 차트 초기화
+            initializeCharts();
+            
+            // 데이터 로드
+            loadDashboardData();
+            
+            // 주기적 헬스체크 시작
+            setInterval(performHealthCheck, 300000); // 5분마다
+            
+            // 초기 헬스체크 실행
+            performHealthCheck();
+        });
     </script>
     
     <!-- Bootstrap CSS -->
@@ -306,11 +328,11 @@
                 : 'https://user-behavior-analytics.onrender.com/api/analytics',
             endpoints: {
                 stats: '/dashboard/stats',
-                sessions: '/dashboard/sessions',
-                areaStats: '/area-stats',
-                hourlyStats: '/hourly-stats',
-                deviceStats: '/device-stats',
-                performanceStats: '/performance-stats'
+                health: '/health',
+                healthDb: '/health/db',
+                session: '/session',
+                sessionEnd: '/session/end',
+                collect: '/collect'
             }
         };
 
