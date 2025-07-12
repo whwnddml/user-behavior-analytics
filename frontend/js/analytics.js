@@ -646,13 +646,21 @@ async function loadDashboardData() {
         const dateFromInput = document.getElementById('date-from');
         const dateToInput = document.getElementById('date-to');
         
-        // 기본값: 지난 30일
+        // 기본값: 지난 7일
         const today = new Date();
-        const lastMonth = new Date();
-        lastMonth.setMonth(today.getMonth() - 1);
+        const lastWeek = new Date();
+        lastWeek.setDate(today.getDate() - 7);
         
-        // 입력된 날짜가 있으면 사용, 없으면 기본값 사용
-        const dateFrom = dateFromInput?.value ? new Date(dateFromInput.value) : lastMonth;
+        // 날짜 입력 필드에 기본값 설정
+        if (dateFromInput && !dateFromInput.value) {
+            dateFromInput.value = formatDate(lastWeek);
+        }
+        if (dateToInput && !dateToInput.value) {
+            dateToInput.value = formatDate(today);
+        }
+        
+        // 입력된 날짜 사용
+        const dateFrom = dateFromInput?.value ? new Date(dateFromInput.value) : lastWeek;
         const dateTo = dateToInput?.value ? new Date(dateToInput.value) : today;
         
         // 미래 날짜 체크
@@ -733,7 +741,7 @@ function updateCharts(data) {
 
         // 디바이스별 통계
         if (stats.devices && stats.devices.length > 0) {
-            window.charts.deviceChart.data.labels = stats.devices.map(device => device.device_type);
+            window.charts.deviceChart.data.labels = stats.devices.map(device => device.device_type || '알 수 없음');
             window.charts.deviceChart.data.datasets[0].data = stats.devices.map(device => device.session_count);
             window.charts.deviceChart.update();
         } else {
@@ -742,7 +750,11 @@ function updateCharts(data) {
 
         // 브라우저별 통계
         if (stats.browsers && stats.browsers.length > 0) {
-            window.charts.browserChart.data.labels = stats.browsers.map(browser => browser.browser_name);
+            window.charts.browserChart.data.labels = stats.browsers.map(browser => {
+                const name = browser.browser_name || '알 수 없음';
+                const version = browser.browser_version ? ` ${browser.browser_version}` : '';
+                return `${name}${version}`;
+            });
             window.charts.browserChart.data.datasets[0].data = stats.browsers.map(browser => browser.session_count);
             window.charts.browserChart.update();
         } else {
