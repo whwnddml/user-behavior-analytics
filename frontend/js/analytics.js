@@ -509,48 +509,56 @@ function initializeCharts() {
     // 브라우저별 사용자 분포
     const browserChartElement = document.getElementById('browserChart');
     if (browserChartElement) {
-        window.charts.browserChart = new Chart(browserChartElement, {
-            type: 'pie',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: '브라우저별 사용자 수',
-                    data: [],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.5)',
-                        'rgba(54, 162, 235, 0.5)',
-                        'rgba(255, 206, 86, 0.5)',
-                        'rgba(75, 192, 192, 0.5)',
-                        'rgba(153, 102, 255, 0.5)'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: '브라우저별 사용자 분포'
-                    },
-                    legend: {
-                        display: true,
-                        position: 'right'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '알 수 없음';
-                                const value = context.raw || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                return `${label}: ${value}명 (${percentage}%)`;
+        try {
+            console.log('브라우저 차트 초기화 시작');
+            window.charts.browserChart = new Chart(browserChartElement, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '브라우저별 사용자 수',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '브라우저별 사용자 분포'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'right'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '알 수 없음';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value}명 (${percentage}%)`;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+            console.log('브라우저 차트 초기화 완료');
+        } catch (error) {
+            console.error('브라우저 차트 초기화 실패:', error);
+        }
+    } else {
+        console.error('브라우저 차트 엘리먼트를 찾을 수 없습니다.');
     }
 
     // 시간대별 활동량
@@ -766,17 +774,27 @@ function updateCharts(data) {
 
         // 브라우저별 통계
         if (stats.browsers && stats.browsers.length > 0) {
+            // 디버깅을 위한 로그
+            console.log('브라우저 데이터:', stats.browsers);
+            
             // 브라우저 데이터 정렬 (세션 수 기준 내림차순)
             const sortedBrowsers = [...stats.browsers].sort((a, b) => b.session_count - a.session_count);
             
-            window.charts.browserChart.data.labels = sortedBrowsers.map(browser => {
+            const labels = sortedBrowsers.map(browser => {
                 const name = browser.browser || '알 수 없음';
                 const version = browser.version && browser.version !== 'unknown' ? ` ${browser.version}` : '';
-                return `${name}${version}`;
+                const label = `${name}${version}`;
+                console.log('브라우저 레이블 생성:', { browser, name, version, label });
+                return label;
             });
+            
+            console.log('최종 브라우저 레이블:', labels);
+            
+            window.charts.browserChart.data.labels = labels;
             window.charts.browserChart.data.datasets[0].data = sortedBrowsers.map(browser => browser.session_count);
             window.charts.browserChart.update();
         } else {
+            console.log('브라우저 데이터가 없습니다:', stats.browsers);
             showNoData('browserChart');
         }
 
