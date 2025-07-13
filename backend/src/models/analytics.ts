@@ -393,30 +393,39 @@ export class AnalyticsModel {
         const params: any[] = [];
         let paramIndex = 1;
         
-        // 날짜 필터 조건 설정
+        // 날짜 필터 조건 설정 (KST 기준)
+        let dateFilterCondition = '';
         if (startDate) {
-            params.push(new Date(startDate));
+            // KST 자정을 UTC로 변환 (-9시간)
+            const startDateTime = new Date(startDate);
+            startDateTime.setHours(-9, 0, 0, 0);  // KST 00:00:00 = UTC 15:00:00 (전날)
+            params.push(startDateTime);
+            dateFilterCondition += ` AND s.start_time >= $${paramIndex}`;
+            paramIndex++;
         }
         if (endDate) {
-            // endDate는 해당 날짜의 23:59:59까지 포함하도록 설정
+            // KST 다음날 자정 직전을 UTC로 변환
             const endDateTime = new Date(endDate);
-            endDateTime.setHours(23, 59, 59, 999);
+            endDateTime.setHours(14, 59, 59, 999);  // KST 23:59:59.999 = UTC 14:59:59.999
             params.push(endDateTime);
+            dateFilterCondition += ` AND s.start_time <= $${paramIndex}`;
+            paramIndex++;
         }
+
+        // 로깅 추가
+        logger.info('Date filter parameters:', {
+            startDate: startDate ? new Date(startDate).toISOString() : null,
+            endDate: endDate ? new Date(endDate).toISOString() : null,
+            convertedStartDate: params[0]?.toISOString(),
+            convertedEndDate: params[1]?.toISOString(),
+            explanation: 'Dates converted from KST to UTC for database query'
+        });
         
         // 페이지 필터 조건 설정
         let pageFilterCondition = '';
         if (pageFilter) {
-            // 정확한 매칭: 선택한 필터와 정확히 일치하는 페이지 URL만 찾기
-            pageFilterCondition = `AND p.page_url = $${params.length + 1}`;
+            pageFilterCondition = ` AND p.page_url = $${paramIndex}`;
             params.push(pageFilter);
-            
-            // 로깅 추가
-            logger.info('Page filter condition:', {
-                condition: pageFilterCondition,
-                pageFilter,
-                explanation: `Looking for exact page URL match: ${pageFilter}`
-            });
         }
 
         try {
@@ -435,8 +444,8 @@ export class AnalyticsModel {
                         FROM sessions s
                         LEFT JOIN pageviews p ON s.session_id = p.session_id
                         LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
-                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        WHERE 1=1
+                        ${dateFilterCondition}
                         ${pageFilterCondition}
                     `, params);
                     return result.rows[0];
@@ -457,8 +466,8 @@ export class AnalyticsModel {
                         FROM area_engagements ae
                         JOIN pageviews p ON ae.pageview_id = p.pageview_id
                         JOIN sessions s ON p.session_id = s.session_id
-                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        WHERE 1=1
+                        ${dateFilterCondition}
                         ${pageFilterCondition}
                         GROUP BY ae.area_name
                         ORDER BY total_time_spent DESC
@@ -498,8 +507,8 @@ export class AnalyticsModel {
                             COUNT(DISTINCT s.session_id) as session_count
                         FROM sessions s
                         LEFT JOIN pageviews p ON s.session_id = p.session_id
-                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        WHERE 1=1
+                        ${dateFilterCondition}
                         ${pageFilterCondition}
                         GROUP BY 
                             CASE 
@@ -539,8 +548,8 @@ export class AnalyticsModel {
                                 s.session_id
                             FROM sessions s
                             LEFT JOIN pageviews p ON s.session_id = p.session_id
-                            WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                            AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                            WHERE 1=1
+                            ${dateFilterCondition}
                             ${pageFilterCondition}
                         )
                         SELECT 
@@ -563,8 +572,8 @@ export class AnalyticsModel {
                             COUNT(DISTINCT p.pageview_id) as pageview_count
                         FROM sessions s
                         LEFT JOIN pageviews p ON s.session_id = p.session_id
-                        WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                        AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                        WHERE 1=1
+                        ${dateFilterCondition}
                         ${pageFilterCondition}
                         GROUP BY EXTRACT(HOUR FROM s.start_time AT TIME ZONE 'Asia/Seoul')
                         ORDER BY hour
@@ -585,8 +594,8 @@ export class AnalyticsModel {
                             FROM sessions s
                             LEFT JOIN pageviews p ON s.session_id = p.session_id
                             LEFT JOIN interactions i ON p.pageview_id = i.pageview_id
-                            WHERE ($1::timestamp IS NULL OR s.start_time >= $1)
-                            AND ($2::timestamp IS NULL OR s.start_time <= $2)
+                            WHERE 1=1
+                            ${dateFilterCondition}
                             ${pageFilterCondition}
                             GROUP BY s.session_id, s.start_time, s.user_agent
                         )
