@@ -1,36 +1,63 @@
 graph TB
     subgraph "클라이언트 사이드"
         A["웹 페이지<br/>(HTML/CSS)"]
-        B["분석 스크립트<br/>(JavaScript)"]
+        B["분석 스크립트<br/>(user-analytics.js)"]
         C["데이터 수집 모듈"]
         
         subgraph "추적 기능"
-            D["영역 체류 시간<br/>IntersectionObserver"]
-            E["스크롤 패턴<br/>ScrollTracker"]
-            F["사용자 인터랙션<br/>EventListener"]
-            G["폼 분석<br/>FormAnalytics"]
+            D["영역 체류 시간<br/>IntersectionObserver<br/>40% 가시성 + 5초 검증"]
+            E["사용자 인터랙션<br/>클릭, 폼 이벤트<br/>(스크롤/호버 제외)"]
+            F["성능 메트릭<br/>Navigation Timing API"]
+            G["증분 데이터 전송<br/>30초 간격"]
+        end
+        
+        subgraph "최적화"
+            H["백그라운드 처리<br/>페이지 가시성 기반"]
+            I["메모리 최적화<br/>이벤트 디바운싱"]
         end
     end
 
     subgraph "서버 사이드"
-        H["RESTful API<br/>서버"]
-        I["데이터 처리<br/>서비스"]
-        J["데이터베이스"]
+        J["RESTful API<br/>Express.js"]
+        K["데이터 처리<br/>서비스"]
+        L["PostgreSQL<br/>데이터베이스"]
         
         subgraph "데이터베이스 테이블"
-            K["세션"]
-            L["페이지뷰"]
-            M["영역 체류"]
-            N["스크롤 행동"]
-            O["인터랙션"]
-            P["폼 분석"]
+            M["sessions<br/>세션 정보"]
+            N["pageviews<br/>페이지뷰"]
+            O["area_engagements<br/>영역 체류"]
+            P["interactions<br/>인터랙션"]
+            Q["form_analytics<br/>폼 분석"]
+            R["scroll_metrics<br/>스크롤 행동"]
         end
+        
+        subgraph "운영 환경"
+            S["Render<br/>Web Service"]
+            T["PostgreSQL<br/>uba_zfqs"]
+            U["마이그레이션<br/>시스템"]
+            V["헬스체크<br/>엔드포인트"]
+        end
+    end
+
+    subgraph "대시보드"
+        W["관리자 대시보드<br/>analytics-dashboard.html"]
+        X["Chart.js<br/>시각화"]
+        Y["실시간 모니터링<br/>10분 간격 헬스체크"]
     end
 
     A --> B
     B --> C
-    C --> D & E & F & G
-    D & E & F & G --> H
-    H --> I
-    I --> J
-    J --> K & L & M & N & O & P 
+    C --> D & E & F
+    D & E & F --> G
+    G --> H & I
+    H & I --> J
+    J --> K
+    K --> L
+    L --> M & N & O & P & Q & R
+    S --> J
+    T --> L
+    U --> L
+    V --> J
+    W --> X
+    X --> Y
+    Y --> J 
