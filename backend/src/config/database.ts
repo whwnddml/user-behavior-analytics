@@ -7,13 +7,15 @@ export const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: isProduction ? { rejectUnauthorized: false } : false,
   // 연결 풀 설정
-  max: 20, // 최대 클라이언트 수
-  min: 2,  // 최소 유지 연결 수
-  idleTimeoutMillis: 300000, // 유휴 연결 타임아웃 (5분)
+  max: isProduction ? 5 : 20, // 프로덕션에서는 5개로 제한, 개발환경에서는 20개
+  min: 0,  // 필요할 때만 연결 생성
+  idleTimeoutMillis: 180000, // 유휴 연결 타임아웃 (3분)
   connectionTimeoutMillis: 60000, // 연결 타임아웃 증가 (1분)
-  allowExitOnIdle: false, // 유휴 상태에서 연결 유지
+  allowExitOnIdle: true, // 유휴 상태에서 연결 해제 허용
   statement_timeout: 60000, // 쿼리 타임아웃 증가 (1분)
-  query_timeout: 60000 // 쿼리 타임아웃 증가 (1분)
+  query_timeout: 60000, // 쿼리 타임아웃 증가 (1분),
+  keepAlive: true, // TCP Keep-Alive 활성화
+  keepAliveInitialDelayMillis: 10000 // 10초 후 Keep-Alive 시작
 });
 
 // 연결 이벤트 핸들러 등록
