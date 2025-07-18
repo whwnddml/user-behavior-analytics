@@ -5,17 +5,15 @@ import { logger } from './logger';
 // 데이터베이스 연결 풀 설정
 export const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: isProduction ? { rejectUnauthorized: false } : false,
+  ssl: isProduction ? { rejectUnauthorized: false } : false, // Render는 SSL 필수
   // 연결 풀 설정
   max: isProduction ? 5 : 20, // 프로덕션에서는 5개로 제한, 개발환경에서는 20개
   min: 0,  // 필요할 때만 연결 생성
-  idleTimeoutMillis: 180000, // 유휴 연결 타임아웃 (3분)
-  connectionTimeoutMillis: 60000, // 연결 타임아웃 증가 (1분)
+  idleTimeoutMillis: 60000, // 유휴 연결 타임아웃 (1분으로 감소)
+  connectionTimeoutMillis: 10000, // 연결 타임아웃 (10초로 감소)
   allowExitOnIdle: true, // 유휴 상태에서 연결 해제 허용
-  statement_timeout: 60000, // 쿼리 타임아웃 증가 (1분)
-  query_timeout: 60000, // 쿼리 타임아웃 증가 (1분),
-  keepAlive: true, // TCP Keep-Alive 활성화
-  keepAliveInitialDelayMillis: 10000 // 10초 후 Keep-Alive 시작
+  statement_timeout: 30000, // 쿼리 타임아웃 (30초)
+  query_timeout: 30000 // 쿼리 타임아웃 (30초)
 });
 
 // 연결 이벤트 핸들러 등록
@@ -30,7 +28,7 @@ pool.on('error', (err, client) => {
   setTimeout(() => {
     logger.info('Attempting to reconnect after error...');
     testConnection(3);
-  }, 5000);
+  }, 1000); // 1초 후 재시도
 });
 
 pool.on('connect', async (client) => {
@@ -53,16 +51,14 @@ pool.on('remove', () => {
 });
 
 // 데이터베이스 연결 테스트 (재시도 로직 포함)
-export const testConnection = async (retries = 15): Promise<boolean> => {
+export const testConnection = async (retries = 3): Promise<boolean> => {
   for (let i = 0; i < retries; i++) {
     try {
       const client = await pool.connect();
-      const result = await client.query('SELECT NOW(), current_database() as db, version() as version');
+      const result = await client.query('SELECT NOW()');
       client.release();
       logger.info('Database connection test successful', {
         timestamp: result.rows[0].now,
-        database: result.rows[0].db,
-        version: result.rows[0].version,
         attempt: i + 1
       });
       return true;
@@ -72,11 +68,11 @@ export const testConnection = async (retries = 15): Promise<boolean> => {
         stack: error instanceof Error ? error.stack : undefined,
         attempt: i + 1,
         remainingRetries: retries - i - 1,
-        connectionString: DATABASE_URL.replace(/:[^:]*@/, ':****@') // 비밀번호 마스킹
+        connectionString: DATABASE_URL.replace(/:[^:]*@/, ':****@')
       });
       
       if (i < retries - 1) {
-        const delay = Math.min(1000 * Math.pow(2, i), 60000); // 지수 백오프, 최대 1분
+        const delay = 1000; // 항상 1초 후 재시도
         logger.info(`Retrying connection in ${delay/1000} seconds... (Attempt ${i + 2}/${retries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
